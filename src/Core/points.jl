@@ -173,47 +173,22 @@ function add_point_dynamical!(
         end
     end
 
+    if O > 1 && isnothing(δfun)
+        δfun = t->vcat(fun(t), D¹(fun, t))[1:min(6, 3O)]
+    end
+
+    if O > 2 && isnothing(δ²fun)
+        δ²fun = t->vcat(δfun(t), D²(fun, t))[1:min(9, 3O)]
+    end
+
+    if O > 3 && isnothing(δ³fun)
+        δ³fun = t->vcat(δ²fun(t), D³(fun, t))[1:3O]
+    end
+
+    tmp = [fun, δfun, δ²fun, δ³fun]
+
     funs = FramePointFunctions{O, N}(
-        t -> SVectorNT{3O, N}(fun(t)),
-
-        # First derivative
-        if isnothing(δfun)
-            t -> SVectorNT{3O, N}(vcat(fun(t), D¹(fun, t)))
-        else
-            t -> SVectorNT{3O, N}(δfun(t))
-        end,
-
-        # Second derivative
-        if isnothing(δ²fun)
-            (
-                if isnothing(δfun)
-                    t -> SVectorNT{3O, N}(vcat(fun(t), D¹(fun, t), D²(fun, t)))
-                else
-                    t -> SVectorNT{3O, N}(vcat(δfun(t), D²(fun, t)))
-                end
-            )
-        else
-            t -> SVectorNT{3O, N}(δ²fun(t))
-        end,
-
-        # Third derivative 
-        if isnothing(δ³fun)
-            (
-                if isnothing(δ²fun)
-                    (
-                        if isnothing(δfun)
-                            t -> SVectorNT{3O, N}(vcat(fun(t), D¹(fun, t), D²(fun, t), D³(fun, t)))
-                        else
-                            t -> SVectorNT{3O, N}(vcat(δfun(t), D²(fun, t), D³(fun, t)))
-                        end
-                    )
-                else
-                    t -> SVectorNT{3O, N}(vcat(δ²fun(t), D³(fun, t)))
-                end
-            )
-        else
-            t -> SVectorNT{3O, N}(δ³fun(t))
-        end,
+        [t->vcat(tmp[i](t), zeros(3(O - i))) for i in 1:O]...
     )
     
     return add_point!(
