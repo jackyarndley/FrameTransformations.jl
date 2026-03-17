@@ -70,12 +70,19 @@ include("Core/axes.jl")
 include("Core/points.jl")
 include("Core/directions.jl")
 
-# Transformations 
+# Transformations
 export rotation3, rotation6, rotation9, rotation12,
        vector3, vector6, vector9, vector12,
        direction3, direction6, direction9, direction12
 
 include("Core/transform.jl")
+
+# Compiled (allocation-free) transforms
+export CompiledRotation, CompiledTranslation,
+       compile_rotation, compile_rotation3, compile_rotation6,
+       compile_translation, compile_vector3, compile_vector6
+
+include("Core/compiled.jl")
 
 # ==========================================================================================
 # Definitions
