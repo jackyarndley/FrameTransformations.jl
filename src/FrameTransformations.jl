@@ -78,9 +78,13 @@ export rotation3, rotation6, rotation9, rotation12,
 include("Core/transform.jl")
 
 # Compiled (allocation-free) transforms
-export CompiledRotation, CompiledTranslation,
+export CompiledRotation, CompiledTranslation, CompiledDirection,
        compile_rotation, compile_rotation3, compile_rotation6,
-       compile_translation, compile_vector3, compile_vector6
+       compile_rotation9, compile_rotation12,
+       compile_translation, compile_vector3, compile_vector6,
+       compile_vector9, compile_vector12,
+       compile_direction, compile_direction3, compile_direction6,
+       compile_direction9, compile_direction12
 
 include("Core/compiled.jl")
 
