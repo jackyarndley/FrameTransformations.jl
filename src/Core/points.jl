@@ -83,6 +83,7 @@ function add_point!(
     # Connect the new point to the parent point in the graph 
     !isnothing(parentid) && add_edge!(points_graph(frames), parentid, id)
 
+    _rebuild_points_cache!(frames)
     return nothing
 end
 

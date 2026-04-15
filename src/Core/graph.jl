@@ -158,43 +158,53 @@ Check if `name` direction is within `frames`.
 """
     _get_axes_nodes(fr::FrameSystem, fromid::Int, toid::Int)
 
-Return the cached vector of `FrameAxesNode` along the shortest path from `fromid` to 
-`toid`. On first call for a given pair, resolves the path and caches it. Subsequent calls 
-return the cached vector directly.
+Return the cached vector of `FrameAxesNode` along the path from `fromid` to `toid`.
+The cache is eagerly populated when axes are registered, so this is a plain lookup.
 """
 function _get_axes_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
-    key = (fromid, toid)
-    cached = get(fr._axes_nodes, key, nothing)
-    cached !== nothing && return cached
-    path = get_path(axes_graph(fr), fromid, toid)
-    g = axes_graph(fr)
-    nodes = Vector{FrameAxesNode{O,T}}(undef, length(path))
-    @inbounds for i in eachindex(path)
-        nodes[i] = get_mappednode(g, path[i])
-    end
-    fr._axes_nodes[key] = nodes
-    return nodes
+    return get(fr._axes_nodes, (fromid, toid), FrameAxesNode{O,T}[])
 end
 
 """
     _get_points_nodes(fr::FrameSystem, fromid::Int, toid::Int)
 
-Return the cached vector of `FramePointNode` along the shortest path from `fromid` to 
-`toid`. On first call for a given pair, resolves the path and caches it. Subsequent calls 
-return the cached vector directly.
+Return the cached vector of `FramePointNode` along the path from `fromid` to `toid`.
+The cache is eagerly populated when points are registered, so this is a plain lookup.
 """
 function _get_points_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
-    key = (fromid, toid)
-    cached = get(fr._points_nodes, key, nothing)
-    cached !== nothing && return cached
-    path = get_path(points_graph(fr), fromid, toid)
-    g = points_graph(fr)
-    nodes = Vector{FramePointNode{O,T}}(undef, length(path))
-    @inbounds for i in eachindex(path)
-        nodes[i] = get_mappednode(g, path[i])
+    return get(fr._points_nodes, (fromid, toid), FramePointNode{O,T}[])
+end
+
+function _rebuild_axes_cache!(fr::FrameSystem{O,T}) where {O,T}
+    empty!(fr._axes_nodes)
+    g = axes_graph(fr)
+    ids = [n.id for n in g.nodes]
+    for fromid in ids, toid in ids
+        fromid == toid && continue
+        path = get_path(g, fromid, toid)
+        nodes = Vector{FrameAxesNode{O,T}}(undef, length(path))
+        @inbounds for i in eachindex(path)
+            nodes[i] = get_mappednode(g, path[i])
+        end
+        fr._axes_nodes[(fromid, toid)] = nodes
     end
-    fr._points_nodes[key] = nodes
-    return nodes
+    return nothing
+end
+
+function _rebuild_points_cache!(fr::FrameSystem{O,T}) where {O,T}
+    empty!(fr._points_nodes)
+    g = points_graph(fr)
+    ids = [n.id for n in g.nodes]
+    for fromid in ids, toid in ids
+        fromid == toid && continue
+        path = get_path(g, fromid, toid)
+        nodes = Vector{FramePointNode{O,T}}(undef, length(path))
+        @inbounds for i in eachindex(path)
+            nodes[i] = get_mappednode(g, path[i])
+        end
+        fr._points_nodes[(fromid, toid)] = nodes
+    end
+    return nothing
 end
 
 # ---
