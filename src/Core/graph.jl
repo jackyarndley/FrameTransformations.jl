@@ -29,13 +29,17 @@ struct FrameSystem{O,T<:Number,S<:AbstractTimeScale}
     points::AliasGraph{PointsGraph{O,T},Dict{Symbol,Int}}
     axes::AliasGraph{AxesGraph{O,T},Dict{Symbol,Int}}
     dir::Dict{Symbol,DirectionDefinition{O,T}}
+    _axes_nodes::Dict{Tuple{Int,Int},Vector{FrameAxesNode{O,T}}}
+    _points_nodes::Dict{Tuple{Int,Int},Vector{FramePointNode{O,T}}}
 end
 
 function FrameSystem{O,T,S}() where {O,T,S}
     return FrameSystem{O,T,S}(
         AliasGraph(MappedGraph(FramePointNode{O,T}), Dict{Symbol,Int}()),
         AliasGraph(MappedGraph(FrameAxesNode{O,T}), Dict{Symbol,Int}()),
-        Dict()
+        Dict{Symbol,DirectionDefinition{O,T}}(),
+        Dict{Tuple{Int,Int},Vector{FrameAxesNode{O,T}}}(),
+        Dict{Tuple{Int,Int},Vector{FramePointNode{O,T}}}()
     )
 end
 
@@ -150,6 +154,48 @@ Check if `ax` axes is within `frames`.
 Check if `name` direction is within `frames`.
 """
 @inline has_direction(f::FrameSystem, name::Symbol) = haskey(f.dir, name)
+
+"""
+    _get_axes_nodes(fr::FrameSystem, fromid::Int, toid::Int)
+
+Return the cached vector of `FrameAxesNode` along the shortest path from `fromid` to 
+`toid`. On first call for a given pair, resolves the path and caches it. Subsequent calls 
+return the cached vector directly.
+"""
+function _get_axes_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
+    key = (fromid, toid)
+    cached = get(fr._axes_nodes, key, nothing)
+    cached !== nothing && return cached
+    path = get_path(axes_graph(fr), fromid, toid)
+    g = axes_graph(fr)
+    nodes = Vector{FrameAxesNode{O,T}}(undef, length(path))
+    @inbounds for i in eachindex(path)
+        nodes[i] = get_mappednode(g, path[i])
+    end
+    fr._axes_nodes[key] = nodes
+    return nodes
+end
+
+"""
+    _get_points_nodes(fr::FrameSystem, fromid::Int, toid::Int)
+
+Return the cached vector of `FramePointNode` along the shortest path from `fromid` to 
+`toid`. On first call for a given pair, resolves the path and caches it. Subsequent calls 
+return the cached vector directly.
+"""
+function _get_points_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
+    key = (fromid, toid)
+    cached = get(fr._points_nodes, key, nothing)
+    cached !== nothing && return cached
+    path = get_path(points_graph(fr), fromid, toid)
+    g = points_graph(fr)
+    nodes = Vector{FramePointNode{O,T}}(undef, length(path))
+    @inbounds for i in eachindex(path)
+        nodes[i] = get_mappednode(g, path[i])
+    end
+    fr._points_nodes[key] = nodes
+    return nodes
+end
 
 # ---
 # Formatting & printing 
