@@ -72,7 +72,7 @@ function add_axes!(
     # Connect the new axes to the parent axes in the graph 
     !isnothing(parentid) && add_edge!(axes_graph(frames), parentid, id)
 
-    _rebuild_axes_cache!(frames)
+    empty!(frames._axes_nodes)
     return nothing
 end
 

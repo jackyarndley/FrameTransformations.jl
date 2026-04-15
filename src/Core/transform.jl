@@ -70,15 +70,20 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
 
             fromid == toid && return Rotation{$order}(T(1) * I)
 
-            nodes = _get_axes_nodes(fr, fromid, toid)
-
-            if isempty(nodes)
-                throw(
-                    ErrorException(
-                        "no path between axes $fromid and $toid in the frame system."
+            for id in (fromid, toid)
+                if !has_axes(fr, id)
+                    throw(
+                        ErrorException(
+                            "axes with ID $id are not registered in the frame system."
+                        )
                     )
-                )
+                end
             end
+
+            nodes = _get_axes_nodes(fr, fromid, toid)
+            isnothing(nodes) && throw(
+                ErrorException("no path between axes $fromid and $toid in the frame system.")
+            )
 
             return $(_axfun)(nodes, t)
         end
@@ -167,14 +172,14 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
 
             fromid == toid && return @SVector zeros(T, 3 * $order)
 
-            nodes = _get_points_nodes(fr, fromid, toid)
-
-            if isempty(nodes)
-                throw(
-                    ErrorException(
-                        "no path between points $fromid and $toid in the frame system."
+            for id in (fromid, toid)
+                if !has_point(fr, id)
+                    throw(
+                        ErrorException(
+                            "point with ID $id is not registered in the frame system."
+                        )
                     )
-                )
+                end
             end
 
             if !has_axes(fr, axid)
@@ -182,6 +187,11 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
                     ErrorException("axes with ID $axid are not registered in the frame system.")
                 )
             end
+
+            nodes = _get_points_nodes(fr, fromid, toid)
+            isnothing(nodes) && throw(
+                ErrorException("no path between points $fromid and $toid in the frame system.")
+            )
 
             return SVector($(_pfun)(fr, nodes, axid, t))
         end

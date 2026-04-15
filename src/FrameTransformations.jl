@@ -77,6 +77,12 @@ export rotation3, rotation6, rotation9, rotation12,
 
 include("Core/transform.jl")
 
+# Compiled fast-path
+export CompiledRotation, CompiledTranslation, CompiledDirection,
+       compile_rotation, compile_translation, compile_direction
+
+include("Core/compiled.jl")
+
 # ==========================================================================================
 # Definitions
 # ==========================================================================================

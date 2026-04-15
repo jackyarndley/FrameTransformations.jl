@@ -80,6 +80,7 @@ function _get_rot_dcm_tuple(Δ::ChainRulesCore.Tangent)
         return Tuple(m)
     end
 end
+_get_rot_dcm_tuple(Δ) = Δ.m
 
 function _rotation_pullback_dt(J::AbstractVector, Δ)
     Δu = unthunk(Δ)

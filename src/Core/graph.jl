@@ -158,23 +158,33 @@ Check if `name` direction is within `frames`.
 """
     _get_axes_nodes(fr::FrameSystem, fromid::Int, toid::Int)
 
-Return the cached vector of `FrameAxesNode` along the path from `fromid` to `toid`.
-The cache is eagerly populated when axes are registered, so this is a plain lookup.
+Return the cached vector of `FrameAxesNode` along the path from `fromid` to `toid`,
+or `nothing` if the pair is not in the cache. The cache is lazily built on first access
+after any topology change, then reused for all subsequent queries.
 """
-function _get_axes_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
-    return get(fr._axes_nodes, (fromid, toid), FrameAxesNode{O,T}[])
+function _get_axes_nodes(fr::FrameSystem, fromid::Int, toid::Int)
+    if isempty(fr._axes_nodes) && length(axes_graph(fr).nodes) > 1
+        _rebuild_axes_cache!(fr)
+    end
+    return get(fr._axes_nodes, (fromid, toid), nothing)
 end
 
 """
     _get_points_nodes(fr::FrameSystem, fromid::Int, toid::Int)
 
-Return the cached vector of `FramePointNode` along the path from `fromid` to `toid`.
-The cache is eagerly populated when points are registered, so this is a plain lookup.
+Return the cached vector of `FramePointNode` along the path from `fromid` to `toid`,
+or `nothing` if the pair is not in the cache. The cache is lazily built on first access
+after any topology change, then reused for all subsequent queries.
 """
-function _get_points_nodes(fr::FrameSystem{O,T}, fromid::Int, toid::Int) where {O,T}
-    return get(fr._points_nodes, (fromid, toid), FramePointNode{O,T}[])
+function _get_points_nodes(fr::FrameSystem, fromid::Int, toid::Int)
+    if isempty(fr._points_nodes) && length(points_graph(fr).nodes) > 1
+        _rebuild_points_cache!(fr)
+    end
+    return get(fr._points_nodes, (fromid, toid), nothing)
 end
 
+# Rebuild the full axes path cache. Cost is O(N²) in the number of registered axes.
+# Deferred to first query so that registering N axes costs O(N²) total rather than O(N³).
 function _rebuild_axes_cache!(fr::FrameSystem{O,T}) where {O,T}
     empty!(fr._axes_nodes)
     g = axes_graph(fr)
@@ -191,6 +201,8 @@ function _rebuild_axes_cache!(fr::FrameSystem{O,T}) where {O,T}
     return nothing
 end
 
+# Rebuild the full points path cache. Cost is O(N²) in the number of registered points.
+# Deferred to first query so that registering N points costs O(N²) total rather than O(N³).
 function _rebuild_points_cache!(fr::FrameSystem{O,T}) where {O,T}
     empty!(fr._points_nodes)
     g = points_graph(fr)
