@@ -30,7 +30,6 @@ MooncakeExt = ["Mooncake", "ChainRulesCore"]
 [compat]
 ChainRulesCore = "1"
 Ephemerides = "1"
-FiniteDiff = "2"
 ForwardDiff = "0.10, 1"
 FunctionWrappers = "1"
 FunctionWrappersWrappers = "0.1"
