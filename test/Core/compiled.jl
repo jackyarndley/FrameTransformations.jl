@@ -32,7 +32,7 @@ using Test
     t = π / 3
 
     # --------------------------------------------------------------------------
-    # Rotation: 2-node (direct parent-child)
+    # Rotation: 2-node (direct parent-child), default order (O=4)
     # --------------------------------------------------------------------------
     @testset "compile_rotation — 2-node" begin
         cr = compile_rotation(fr, :ICRF, :A)
@@ -55,12 +55,16 @@ using Test
     end
 
     # --------------------------------------------------------------------------
-    # Rotation: inverse direction
+    # Rotation: inverse direction — verify Inv type parameter
     # --------------------------------------------------------------------------
     @testset "compile_rotation — inverse" begin
         cr_fwd = compile_rotation(fr, :ICRF, :A)
         cr_inv = compile_rotation(fr, :A, :ICRF)
         @test cr_fwd(t)[1] ≈ inv(cr_inv(t))[1]
+
+        # Verify inverse is encoded in the type, not as a runtime field
+        @test cr_fwd isa CompiledRotation{4, false}
+        @test cr_inv isa CompiledRotation{4, true}
     end
 
     # --------------------------------------------------------------------------
@@ -80,6 +84,46 @@ using Test
         for i in 1:4
             @test R_ab_comp[i] ≈ R_ab_core[i]
         end
+    end
+
+    # --------------------------------------------------------------------------
+    # Rotation: reverse multi-hop (C → B → A → ICRF)
+    # --------------------------------------------------------------------------
+    @testset "compile_rotation — reverse multi-hop" begin
+        cr_rev = compile_rotation(fr, :C, :ICRF)
+        R_core = rotation12(fr, 4, 1, t)
+        R_comp = cr_rev(t)
+        for i in 1:4
+            @test R_comp[i] ≈ R_core[i]
+        end
+
+        cr_fwd = compile_rotation(fr, :ICRF, :C)
+        @test cr_rev(t)[1] ≈ inv(cr_fwd(t))[1]
+    end
+
+    # --------------------------------------------------------------------------
+    # Rotation: order selection — Val{1} gives only DCM, no derivatives
+    # --------------------------------------------------------------------------
+    @testset "compile_rotation — order selection" begin
+        cr1 = compile_rotation(fr, :ICRF, :A, Val(1))
+        @test cr1 isa CompiledRotation{1}
+        R1 = cr1(t)
+        @test R1[1] ≈ rotation3(fr, 1, 2, t)[1]
+
+        cr2 = compile_rotation(fr, :ICRF, :A, Val(2))
+        @test cr2 isa CompiledRotation{2}
+        R2 = cr2(t)
+        R2_core = rotation6(fr, 1, 2, t)
+        @test R2[1] ≈ R2_core[1]
+        @test R2[2] ≈ R2_core[2]
+
+        # Order exceeding system order should error
+        @test_throws ArgumentError compile_rotation(fr, :ICRF, :A, Val(5))
+
+        # Multi-hop with reduced order
+        cr1_mh = compile_rotation(fr, :ICRF, :C, Val(1))
+        R1_mh = cr1_mh(t)
+        @test R1_mh[1] ≈ rotation3(fr, 1, 4, t)[1]
     end
 
     # --------------------------------------------------------------------------
@@ -133,6 +177,37 @@ using Test
     end
 
     # --------------------------------------------------------------------------
+    # Translation: reverse multi-hop (P2 → P1 → Origin), exercises inv_flag
+    # in _compile_translation_forward's loop body
+    # --------------------------------------------------------------------------
+    @testset "compile_translation — reverse multi-hop" begin
+        ct_rev = compile_translation(fr, :P2, :Origin, :ICRF)
+        v_core = vector12(fr, 3, 1, 1, t)
+        @test ct_rev(t) ≈ v_core
+
+        ct_rev_a = compile_translation(fr, :P2, :Origin, :A)
+        v_core_a = vector12(fr, 3, 1, 2, t)
+        @test ct_rev_a(t) ≈ v_core_a
+    end
+
+    # --------------------------------------------------------------------------
+    # Translation: order selection
+    # --------------------------------------------------------------------------
+    @testset "compile_translation — order selection" begin
+        ct1 = compile_translation(fr, :Origin, :P1, :ICRF, Val(1))
+        @test ct1 isa CompiledTranslation{1}
+        v1 = ct1(t)
+        @test v1 ≈ vector3(fr, 1, 2, 1, t)
+
+        ct2 = compile_translation(fr, :Origin, :P1, :A, Val(2))
+        @test ct2 isa CompiledTranslation{2}
+        v2 = ct2(t)
+        @test v2 ≈ vector6(fr, 1, 2, 2, t)
+
+        @test_throws ArgumentError compile_translation(fr, :Origin, :P1, :ICRF, Val(5))
+    end
+
+    # --------------------------------------------------------------------------
     # Direction
     # --------------------------------------------------------------------------
     @testset "compile_direction" begin
@@ -150,6 +225,18 @@ using Test
         d_core2 = direction12(fr, :sun, 2, t)
         d_comp2 = cd2(t)
         @test d_comp2 ≈ d_core2
+    end
+
+    # --------------------------------------------------------------------------
+    # Direction: order selection
+    # --------------------------------------------------------------------------
+    @testset "compile_direction — order selection" begin
+        cd1 = compile_direction(fr, :sun, :ICRF, Val(1))
+        @test cd1 isa CompiledDirection{1}
+        d1 = cd1(t)
+        @test d1 ≈ direction3(fr, :sun, 1, t)
+
+        @test_throws ArgumentError compile_direction(fr, :sun, :ICRF, Val(5))
     end
 
     # --------------------------------------------------------------------------

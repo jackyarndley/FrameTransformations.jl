@@ -192,6 +192,7 @@ function _rebuild_axes_cache!(fr::FrameSystem{O,T}) where {O,T}
     for fromid in ids, toid in ids
         fromid == toid && continue
         path = get_path(g, fromid, toid)
+        isempty(path) && continue
         nodes = Vector{FrameAxesNode{O,T}}(undef, length(path))
         @inbounds for i in eachindex(path)
             nodes[i] = get_mappednode(g, path[i])
@@ -210,6 +211,7 @@ function _rebuild_points_cache!(fr::FrameSystem{O,T}) where {O,T}
     for fromid in ids, toid in ids
         fromid == toid && continue
         path = get_path(g, fromid, toid)
+        isempty(path) && continue
         nodes = Vector{FramePointNode{O,T}}(undef, length(path))
         @inbounds for i in eachindex(path)
             nodes[i] = get_mappednode(g, path[i])
