@@ -5,70 +5,26 @@
 # ------
 # Functions
 
-struct FramePointFunctions{O,T}
-    fun::NTuple{O,FramePointFunWrapper{O,T}}
+struct FramePointFunctions{O,T,FW<:FrameFunWrapper}
+    fun::NTuple{O,FW}
 end
 
 Base.getindex(pf::FramePointFunctions, i) = pf.fun[i]
 
-@generated function FramePointFunctions{T}(funs::Function...) where {T}
-    O = length(funs)
-
-    expr = Expr(:call, :tuple)
-    for i in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call, Expr(:curly, :FramePointFunWrapper, O, T), Expr(:ref, :funs, i)
-            )
-        )
-    end
-    pexpr = Expr(:call, Expr(:curly, :FramePointFunctions, O, T), expr)
-
-    return quote
-        @inbounds $(pexpr)
-    end
+function FramePointFunctions{T}(funs::Vararg{Function,O}) where {T,O}
+    wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
+    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
-@generated function FramePointFunctions{O,T}(funs::Function...) where {O,T}
+function FramePointFunctions{O,T}(funs::Function...) where {O,T}
     O > length(funs) && throw(ArgumentError("required at least $O functions."))
-
-    expr = Expr(:call, :tuple)
-    for i in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call, Expr(:curly, :FramePointFunWrapper, O, T), Expr(:ref, :funs, i)
-            )
-        )
-    end
-    pexpr = Expr(:call, Expr(:curly, :FramePointFunctions, O, T), expr)
-
-    return quote
-        @inbounds $(pexpr)
-    end
+    wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
+    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
-@generated function FramePointFunctions{O,T}(fun::Function) where {O,T}
-    expr = Expr(:call, :tuple)
-    for _ in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call, Expr(:curly, :FramePointFunWrapper, O, T), :fun
-            )
-        )
-    end
-    pexpr = Expr(
-        :call,
-        Expr(:curly, :FramePointFunctions, O, T),
-        expr
-    )
-
-    return quote
-        Base.@_inline_meta
-        $(pexpr)
-    end
+function FramePointFunctions{O,T}(fun::Function) where {O,T}
+    wrappers = ntuple(_ -> _frame_point_fun_wrapper(Val(O), T, fun), Val(O))
+    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
 function FramePointFunctions{O,T}() where {O,T}
@@ -120,82 +76,26 @@ const PointsGraph{O,T} = MappedNodeGraph{FramePointNode{O,T},SimpleGraph{Int}}
 # ------
 # Functions
 
-struct FrameAxesFunctions{O,T}
-    fun::NTuple{O,FrameAxesFunWrapper{O,T}}
+struct FrameAxesFunctions{O,T,FW<:FrameFunWrapper}
+    fun::NTuple{O,FW}
 end
 
 Base.getindex(pf::FrameAxesFunctions, i) = pf.fun[i]
 
-@generated function FrameAxesFunctions{T}(funs::Function...) where {T}
-    O = length(funs)
-
-    expr = Expr(:call, :tuple)
-    for i in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call,
-                Expr(:curly, :FrameAxesFunWrapper, O, T),
-                Expr(:ref, :funs, i)
-            )
-        )
-    end
-    pexpr = Expr(
-        :call,
-        Expr(:curly, :FrameAxesFunctions, O, T),
-        expr
-    )
-
-    return quote
-        @inbounds $(pexpr)
-    end
+function FrameAxesFunctions{T}(funs::Vararg{Function,O}) where {T,O}
+    wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
+    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
-@generated function FrameAxesFunctions{O,T}(funs::Function...) where {O,T}
+function FrameAxesFunctions{O,T}(funs::Function...) where {O,T}
     O > length(funs) && throw(ArgumentError("required at least $O functions."))
-
-    expr = Expr(:call, :tuple)
-    for i in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call,
-                Expr(:curly, :FrameAxesFunWrapper, O, T),
-                Expr(:ref, :funs, i)
-            )
-        )
-    end
-    pexpr = Expr(
-        :call,
-        Expr(:curly, :FrameAxesFunctions, O, T),
-        expr
-    )
-
-    return quote
-        @inbounds $(pexpr)
-    end
+    wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
+    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
-@generated function FrameAxesFunctions{O,T}(fun::Function) where {O,T}
-    expr = Expr(:call, :tuple)
-    for _ in 1:O
-        push!(
-            expr.args,
-            Expr(
-                :call, Expr(:curly, :FrameAxesFunWrapper, O, T), :fun
-            )
-        )
-    end
-    pexpr = Expr(
-        :call,
-        Expr(:curly, :FrameAxesFunctions, O, T),
-        expr
-    )
-
-    return quote
-        Base.@_inline_meta
-        $(pexpr)
-    end
+function FrameAxesFunctions{O,T}(fun::Function) where {O,T}
+    wrappers = ntuple(_ -> _frame_axes_fun_wrapper(Val(O), T, fun), Val(O))
+    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
 end
 
 function FrameAxesFunctions{O,T}() where {O,T}
