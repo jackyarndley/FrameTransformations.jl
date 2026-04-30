@@ -26,7 +26,7 @@ using Ephemerides
     FK_DE421 = @RemoteFile "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_080317.tf" dir = joinpath(
         @__DIR__, "..", "assets"
     )
-    FK_DE440 = @RemoteFile "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_220930.tf" dir = joinpath(
+    FK_DE440 = @RemoteFile "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_250416.tf" dir = joinpath(
         @__DIR__, "..", "assets"
     )
 end;
@@ -61,14 +61,14 @@ v2as = (x, y) -> acosd(max(-1, min(1, dot(x / norm(x), y / norm(y))))) * 3600
 
         # Test PA421!
         Rb = rotation6(frames, :PA421, :ICRF, et)
-        Rs = sxform("MOON_PA", "J2000", et)
+        Rs = sxform("MOON_PA_DE421", "J2000", et)
 
         @test v2as(Rb[1] * v, Rs[1:3, 1:3] * v) ≤ 1e-6
         @test v2as(Rb[2] * v, Rs[4:6, 1:3] * v) ≤ 1e-6
 
         # Test ME421!
         Rb = rotation6(frames, :ICRF, :ME421, et)
-        Rs = sxform("J2000", "MOON_ME", et)
+        Rs = sxform("J2000", "MOON_ME_DE421", et)
 
         @test v2as(Rb[1] * v, Rs[1:3, 1:3] * v) ≤ 1e-6
         @test v2as(Rb[2] * v, Rs[4:6, 1:3] * v) ≤ 1e-6
@@ -98,7 +98,7 @@ end
 
         # Test PA421!
         Rb = rotation6(frames, :PA440, :ICRF, et)
-        Rs = sxform("MOON_PA", "J2000", et)
+        Rs = sxform("MOON_PA_DE440", "J2000", et)
 
         @test v2as(Rb[1] * v, Rs[1:3, 1:3] * v) ≤ 1e-6
         @test v2as(Rb[2] * v, Rs[4:6, 1:3] * v) ≤ 1e-6
