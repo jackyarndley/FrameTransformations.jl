@@ -78,6 +78,7 @@ end
 
 @testset "DE440" verbose = false begin
 
+    kclear()
     for kernel in (:LEAP, :PA440, :FK_DE440)
         furnsh(path(KERNELS[kernel]))
     end
@@ -96,7 +97,7 @@ end
         v = rand(BigFloat, 3)
         v /= norm(v)
 
-        # Test PA421!
+        # Test PA440
         Rb = rotation6(frames, :PA440, :ICRF, et)
         Rs = sxform("MOON_PA_DE440", "J2000", et)
 
