@@ -20,6 +20,12 @@ SMDGraphs = "b792745b-7241-45be-ba96-70eb67e8468f"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Tempo = "c33777b2-e695-4fae-9135-aeae8855dd81"
 
+[sources]
+Ephemerides = {rev = "main", url = "https://github.com/jackyarndley/Ephemerides.jl"}
+IERSConventions = {rev = "main", url = "https://github.com/jackyarndley/IERSConventions.jl"}
+JSMDUtils = {rev = "main", url = "https://github.com/jackyarndley/JSMDUtils.jl"}
+Tempo = {rev = "main", url = "https://github.com/jackyarndley/Tempo.jl"}
+
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Ephemerides = "6a9c3322-c8fe-4c26-8ad6-14a6f8acd2a0"
@@ -35,7 +41,7 @@ ChainRulesCore = "1"
 Ephemerides = "1"
 ForwardDiff = "0.10, 1.0"
 FunctionWrappers = "1"
-FunctionWrappersWrappers = "0.1, 1"
+FunctionWrappersWrappers = "1"
 IERSConventions = "1"
 JSMDInterfaces = "1.6"
 JSMDUtils = "1"
