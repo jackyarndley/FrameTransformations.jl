@@ -23,7 +23,7 @@ function add_axes_frozen!(
     end
 
     mid = get_mappedid(axes_graph(fr), fixid)
-    @show node = get_mappednode(axes_graph(fr), mid)
+    node = get_mappednode(axes_graph(fr), mid)
     parid = node.parentid
 
     # Compute rotation 

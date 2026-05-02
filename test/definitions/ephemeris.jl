@@ -19,7 +19,7 @@ using Ephemerides
     )
 end;
 
-download(KERNELS; verbose=true, force=false)
+download(KERNELS; verbose=false, force=false)
 
 @testset "Interface" verbose = false begin
     frames = FrameSystem{2,Float64}()

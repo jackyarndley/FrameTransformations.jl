@@ -13,7 +13,7 @@ using LinearAlgebra
     )
 end;
 
-download(KERNELS; verbose=true, force=false)
+download(KERNELS; verbose=false, force=false)
 
 frames = FrameSystem{4,Float64}()
 add_axes_icrf!(frames)
@@ -81,4 +81,14 @@ end
         val = direction3(frames, :Fix, :ICRF, e)
         @test val[1] ≈ 1.0
     end
+end
+
+@testset "Validation" verbose = false begin
+    local_frames = FrameSystem{4,Float64}()
+    add_axes_icrf!(local_frames)
+
+    add_direction_fixed!(local_frames, :Fix, :ICRF, [1.0, 0.0, 0.0])
+
+    @test_throws ArgumentError add_direction_fixed!(local_frames, :Fix, :ICRF, [1.0, 0.0, 0.0])
+    @test_throws ArgumentError add_direction!(local_frames, :BadAxes, 999, t -> [1.0, 0.0, 0.0])
 end

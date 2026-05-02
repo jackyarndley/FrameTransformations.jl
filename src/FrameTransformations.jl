@@ -3,7 +3,7 @@ module FrameTransformations
 using LinearAlgebra
 using StaticArrays
 using ReferenceFrameRotations
-using FunctionWrappersWrappers: FunctionWrappersWrapper, AllowAll, NoCache
+using FunctionWrappersWrappers: FunctionWrappersWrapper
 
 using JSMDUtils.Math: D¹, D², D³, arcsec2rad,
        unitvec, δunitvec, δ²unitvec, δ³unitvec,
@@ -37,7 +37,6 @@ using IERSConventions: iers_bias, iers_obliquity,
        IERSModel, iers2010a, iers2010b, iers1996
 
 using ForwardDiff
-using JSMDUtils.Autodiff: JSMDDiffTag, derivative
 
 # ==========================================================================================
 # Core
@@ -46,9 +45,9 @@ using JSMDUtils.Autodiff: JSMDDiffTag, derivative
 # Low-level types and aliases
 export Translation, Rotation
 
-include("Core/translation.jl")
-include("Core/rotation.jl")
-include("Core/ad.jl")
+include("core/translation.jl")
+include("core/rotation.jl")
+include("core/ad.jl")
 
 # Frame system 
 export FrameSystem,
@@ -56,8 +55,8 @@ export FrameSystem,
        has_axes, has_point, has_direction,
        point_id, axes_id
 
-include("Core/nodes.jl")
-include("Core/graph.jl")
+include("core/nodes.jl")
+include("core/graph.jl")
 
 # Helper functions 
 export add_axes!, add_axes_projected!, add_axes_rotating!, add_axes_fixedoffset!,
@@ -65,22 +64,22 @@ export add_axes!, add_axes_projected!, add_axes_rotating!, add_axes_fixedoffset!
        add_direction!, add_axes_alias!, add_point_alias!,
        add_point_ephemeris!, add_axes_ephemeris!
 
-include("Core/axes.jl")
-include("Core/points.jl")
-include("Core/directions.jl")
+include("core/axes.jl")
+include("core/points.jl")
+include("core/directions.jl")
 
 # Transformations
 export rotation3, rotation6, rotation9, rotation12,
        vector3, vector6, vector9, vector12,
        direction3, direction6, direction9, direction12
 
-include("Core/transform.jl")
+include("core/transform.jl")
 
 # Compiled fast-path
 export CompiledRotation, CompiledTranslation, CompiledDirection,
        compile_rotation, compile_translation, compile_direction
 
-include("Core/compiled.jl")
+include("core/compiled.jl")
 
 # ==========================================================================================
 # Definitions
@@ -90,49 +89,49 @@ export AXESID_ICRF, AXESID_GCRF,
        AXESID_ECL2000, AXESID_EME2000,
        AXESID_MOONME_DE421, AXESID_MOONPA_DE421, AXESID_MOONPA_DE440
 
-include("Definitions/index.jl")
+include("definitions/index.jl")
 
 export add_axes_icrf!, add_axes_gcrf!, add_axes_eme2000!, add_axes_ecl2000!
 
-include("Definitions/celestial.jl")
-include("Definitions/ecliptic.jl")
+include("definitions/celestial.jl")
+include("definitions/ecliptic.jl")
 
 export add_point_ephemeris!
 
-include("Definitions/ephemeris.jl")
+include("definitions/ephemeris.jl")
 
 export add_axes_frozen!
 
-include("Definitions/frozen.jl")
+include("definitions/frozen.jl")
 
 export add_axes_itrf!, add_axes_cirf!, add_axes_tirf!,
        add_axes_mod!, add_axes_tod!, add_axes_gtod!, add_axes_pef!
 
-include("Definitions/terrestrial.jl")
+include("definitions/terrestrial.jl")
 
 export add_axes_bci2000!, add_axes_bcrtod!
 
-include("Definitions/planetary.jl")
+include("definitions/planetary.jl")
 
 export add_axes_pa440!, add_axes_pa421!, add_axes_me421!
 
-include("Definitions/lunar.jl")
+include("definitions/lunar.jl")
 
 export add_axes_topocentric!, add_point_surface!
 
-include("Definitions/topocentric.jl")
+include("definitions/topocentric.jl")
 
 export add_direction_position!, add_direction_velocity!, add_direction_orthogonal!,
        add_direction_fixed!
 
-include("Definitions/directions.jl")
+include("definitions/directions.jl")
 
 export add_axes_twodir!
 
-include("Definitions/axesfromdir.jl")
+include("definitions/axesfromdir.jl")
 
 export add_axes_fixed_quaternion!, add_axes_fixed_angles!, add_axes_fixed_angleaxis!
 
-include("Definitions/attitude.jl")
+include("definitions/attitude.jl")
 
 end

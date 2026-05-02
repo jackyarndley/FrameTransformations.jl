@@ -63,11 +63,11 @@ function check_point_ephemeris(
 
     # Check that the kernels contain the ephemeris data for the given naifid
     if !(id in ephem_available_points(eph))
-        throw(
-            ErrorException(
-                "Ephemeris data for ID $naifid is not available in the kernels.",
-            ),
-        )
+                throw(
+                    ErrorException(
+                        "Ephemeris data for ID $id is not available in the kernels.",
+                    ),
+                )
     end
 
     # Retrieve the ephemerides position records (i.e., the segment descriptors)
@@ -132,7 +132,7 @@ function check_point_ephemeris(
     if !has_axes(fr, axesid)
         throw(
             ErrorException(
-                "Ephemeris data for point with ID $naifid is expressed in a set" *
+                "Ephemeris data for point with ID $id is expressed in a set" *
                 " of axes with ID $axesid, which are yet to be defined in the" *
                 " input frame system.",
             ),

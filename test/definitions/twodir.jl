@@ -14,7 +14,7 @@ using StaticArrays
     )
 end;
 
-download(KERNELS; verbose=true, force=false)
+download(KERNELS; verbose=false, force=false)
 
 atol = 1e-8
 

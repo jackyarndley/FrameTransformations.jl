@@ -32,7 +32,7 @@ function add_axes!(
         )
     end
 
-    if name in map(x -> x.name, axes_graph(frames).nodes)
+    if haskey(axes_alias(frames), name)
         # Check if axes with the same name also do not already exist
         throw(
             ArgumentError(
@@ -139,7 +139,7 @@ function add_axes_rotating!(
     δfun=nothing, δ²fun=nothing, δ³fun=nothing,
 ) where {O,T}
 
-    for (order, fcn) in enumerate([δfun, δ²fun, δ³fun])
+    for (order, fcn) in enumerate((δfun, δ²fun, δ³fun))
         if (O < order + 1 && !isnothing(fcn))
             @warn "ignoring $fcn, frame system order is less than $(order+1)"
         end
@@ -205,7 +205,7 @@ function add_axes_alias!(frames::FrameSystem{O,T}, target, alias::Symbol) where 
         )
     end
 
-    if alias in keys(axes_alias(frames))
+    if haskey(axes_alias(frames), alias)
         throw(
             ErrorException(
                 "axes with name $alias already present in the given frame system"

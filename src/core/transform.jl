@@ -110,7 +110,7 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
         end
 
         @inline function ($_axfun)(ax::FrameAxesNode, t::Number)
-            R = ax.f[$order](t)
+            R = ax.f[Val($order)](t)
             return Rotation{$order}(R)
         end
     end
@@ -265,7 +265,7 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
         end
 
         @inbounds function ($_pfun)(p::FramePointNode, t::Number)
-            tr = p.f[$order](t)
+            tr = p.f[Val($order)](t)
             return Translation{$order}(tr)
         end
 
@@ -318,7 +318,7 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
             end
 
             node = directions(frames)[name]
-            stv = Translation{$order}(node.f[$order](t))
+            stv = Translation{$order}(node.f[Val($order)](t))
 
             thisaxid = node.axesid
             axid = axes_id(frames, axes)

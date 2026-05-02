@@ -31,7 +31,7 @@ function add_point!(
     end
 
     # Check point with the same name does not already exist 
-    if name in map(x -> x.name, points_graph(frames).nodes)
+    if haskey(points_alias(frames), name)
         throw(
             ArgumentError(
                 "A point with name=$name is already registed in the input frame system"
@@ -142,7 +142,7 @@ function add_point_dynamical!(
     δfun=nothing, δ²fun=nothing, δ³fun=nothing
 ) where {O,T}
 
-    for (order, fcn) in enumerate([δfun, δ²fun, δ³fun])
+    for (order, fcn) in enumerate((δfun, δ²fun, δ³fun))
         if (O < order + 1 && !isnothing(fcn))
             @warn "ignoring $fcn, frame system order is less than $(order+1)"
         end
@@ -210,7 +210,7 @@ function add_point_alias!(frames::FrameSystem{O,N}, target, alias::Symbol) where
         )
     end
 
-    if alias in keys(points_alias(frames))
+    if haskey(points_alias(frames), alias)
         throw(
             ErrorException(
                 "point with name $alias already present in the given frame system"

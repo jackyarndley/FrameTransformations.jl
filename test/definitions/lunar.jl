@@ -31,7 +31,7 @@ using Ephemerides
     )
 end;
 
-download(KERNELS; verbose=true, force=false)
+download(KERNELS; verbose=false, force=false)
 
 v2as = (x, y) -> acosd(max(-1, min(1, dot(x / norm(x), y / norm(y))))) * 3600
 

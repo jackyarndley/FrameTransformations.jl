@@ -1,27 +1,13 @@
-const TagAD1{T} = ForwardDiff.Tag{JSMDDiffTag,T}
-const DualAD1{T} = ForwardDiff.Dual{TagAD1{T},T,1}
-
-# ------------------------------------------------------------------------------------------
-# Points 
-
 const FrameFunWrapper = FunctionWrappersWrapper
 
-function _frame_point_fun_wrapper(::Val{O}, ::Type{T}, fun::Function) where {O,T}
-    argtypes = (Tuple{T}, Tuple{DualAD1{T}})
-    rettypes = (Translation{O,T}, Translation{O,DualAD1{T}})
-    return FunctionWrappersWrapper(
-        fun, argtypes, rettypes; cache = NoCache(), policy = AllowAll()
-    )
+@inline function _build_frame_fun_wrapper(fun::Function, argtypes, rettypes)
+    return FunctionWrappersWrapper(fun, argtypes, rettypes, Val(true))
 end
 
+@inline function _frame_point_fun_wrapper(::Val{O}, ::Type{T}, fun::Function) where {O,T}
+    return _build_frame_fun_wrapper(fun, (Tuple{T},), (Translation{O,T},))
+end
 
-# ------------------------------------------------------------------------------------------
-# Axes
-
-function _frame_axes_fun_wrapper(::Val{O}, ::Type{T}, fun::Function) where {O,T}
-    argtypes = (Tuple{T}, Tuple{DualAD1{T}})
-    rettypes = (Rotation{O,T}, Rotation{O,DualAD1{T}})
-    return FunctionWrappersWrapper(
-        fun, argtypes, rettypes; cache = NoCache(), policy = AllowAll()
-    )
+@inline function _frame_axes_fun_wrapper(::Val{O}, ::Type{T}, fun::Function) where {O,T}
+    return _build_frame_fun_wrapper(fun, (Tuple{T},), (Rotation{O,T},))
 end

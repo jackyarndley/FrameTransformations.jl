@@ -3,6 +3,9 @@ uuid = "5be70612-1674-42c4-a038-c376b6dc81ed"
 authors = ["JSMD Team"]
 version = "3.0.0"
 
+[workspace]
+projects = ["benchmark", "test"]
+
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 FunctionWrappers = "069b7b12-0de2-55c6-9aab-29f3d0a68a2e"

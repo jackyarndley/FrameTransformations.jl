@@ -159,10 +159,10 @@ end
 
 function _compile_rotation_pair(::Val{N}, from::FrameAxesNode, to::FrameAxesNode) where {N}
     if from.id == to.parentid
-        raw_fn = _extract_raw_fn(to.f[N])
+        raw_fn = _extract_raw_fn(to.f[Val(N)])
         return CompiledRotation{N,false}(raw_fn)
     else
-        raw_fn = _extract_raw_fn(from.f[N])
+        raw_fn = _extract_raw_fn(from.f[Val(N)])
         return CompiledRotation{N,true}(raw_fn)
     end
 end
@@ -227,9 +227,9 @@ end
 
 function _compile_point_pair(::Val{N}, from::FramePointNode, to::FramePointNode) where {N}
     if from.id == to.parentid
-        return to.axesid, _extract_raw_fn(to.f[N]), false
+        return to.axesid, _extract_raw_fn(to.f[Val(N)]), false
     else
-        return from.axesid, _extract_raw_fn(from.f[N]), true
+        return from.axesid, _extract_raw_fn(from.f[Val(N)]), true
     end
 end
 
@@ -356,7 +356,7 @@ function compile_direction(fr::FrameSystem{O}, name::Symbol, axes, ::Val{N}) whe
     end
 
     node = directions(fr)[name]
-    raw_fn = _extract_raw_fn(node.f[N])
+    raw_fn = _extract_raw_fn(node.f[Val(N)])
     thisaxid = node.axesid
     axid = axes_id(fr, axes)
 

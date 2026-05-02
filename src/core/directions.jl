@@ -22,8 +22,11 @@ function add_direction!(
     frames::FrameSystem{O,N}, name::Symbol, axes, fun::Function,
     δfun=nothing, δ²fun=nothing, δ³fun=nothing
 ) where {O,N}
+    has_direction(frames, name) && throw(
+        ArgumentError("direction with name=$name is already registered in the frame system.")
+    )
 
-    for (order, fcn) in enumerate([δfun, δ²fun, δ³fun])
+    for (order, fcn) in enumerate((δfun, δ²fun, δ³fun))
         if (O < order + 1 && !isnothing(fcn))
             @warn "ignoring $fcn, frame system order is less than $(order+1)"
         end
@@ -73,6 +76,9 @@ function add_direction!(
     )
 
     axid = axes_id(frames, axes)
+    has_axes(frames, axid) || throw(
+        ArgumentError("Axes with ID $axid are not registered in the input frame system")
+    )
     dir = DirectionDefinition{O,N}(name, length(directions(frames)) + 1, axid, funs)
     push!(directions(frames), Pair(name, dir))
     nothing

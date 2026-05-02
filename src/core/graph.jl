@@ -46,7 +46,7 @@ end
 @inline FrameSystem{O,T}() where {O,T} = FrameSystem{O,T,BarycentricDynamicalTime}()
 
 function Base.summary(io::IO, ::FrameSystem{O,T,S}) where {O,T,S}
-    return println(io, "FrameSystem{$O, $T, $S}")
+    return print(io, "FrameSystem{$O, $T, $S}")
 end
 
 """ 
@@ -232,20 +232,20 @@ function _fmt_node(n::FrameAxesNode)
     return " $(n.name)(id=$(n.id))"
 end
 
-function prettyprint(g::Union{AxesGraph,PointsGraph})
+function prettyprint(io::IO, g::Union{AxesGraph,PointsGraph})
     if !isempty(g.nodes)
-        println(_fmt_node(g.nodes[1]))
-        _print_frame_graph(g, get_node_id(g.nodes[1]), 2, " ", " │   ")
+        println(io, _fmt_node(g.nodes[1]))
+        _print_frame_graph(io, g, get_node_id(g.nodes[1]), 2, " ", " │   ")
     end
 end
 
-function _print_frame_graph(g, pid::Int, idx::Int, last::String, prefix::String)
+function _print_frame_graph(io::IO, g, pid::Int, idx::Int, last::String, prefix::String)
     for i in idx:length(g.nodes)
         if g.nodes[i].parentid == pid
             prefix = (i < length(g.nodes) && g.nodes[i+1].parentid == pid) ? " |" : " └"
-            println(last * prefix * "── " * _fmt_node(g.nodes[i]))
+            println(io, last * prefix * "── " * _fmt_node(g.nodes[i]))
             _print_frame_graph(
-                g, get_node_id(g.nodes[i]), i, last * prefix * "   ", last * prefix)
+                io, g, get_node_id(g.nodes[i]), i, last * prefix * "   ", last * prefix)
         end
     end
 end
@@ -259,16 +259,16 @@ function Base.show(io::IO, g::FrameSystem{O,T,S}) where {O,T,S}
     )
     if !isempty(points_graph(g).nodes)
         printstyled(io, "\nPoints: \n"; bold=true)
-        prettyprint(points_graph(g))
+        prettyprint(io, points_graph(g))
     end
     if !isempty(axes_graph(g).nodes)
         printstyled(io, "\nAxes: \n"; bold=true)
-        prettyprint(axes_graph(g))
+        prettyprint(io, axes_graph(g))
     end
     if !isempty(directions(g))
         printstyled(io, "\nDirections: \n"; bold=true)
         for d in values(directions(g))
-            println(" └── $(d.name)(id=$(d.id))")
+            println(io, " └── $(d.name)(id=$(d.id))")
         end
     end
 end

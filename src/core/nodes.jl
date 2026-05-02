@@ -10,6 +10,7 @@ struct FramePointFunctions{O,T,FW<:FrameFunWrapper}
 end
 
 Base.getindex(pf::FramePointFunctions, i) = pf.fun[i]
+@inline Base.getindex(pf::FramePointFunctions, ::Val{I}) where {I} = getfield(pf.fun, I)
 
 function FramePointFunctions{T}(funs::Vararg{Function,O}) where {T,O}
     wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
@@ -64,7 +65,7 @@ function Base.show(io::IO, p::FramePointNode{O,T}) where {O,T}
     pstr *= ", id=$(p.id), axesid=$(p.axesid)"
     p.parentid == p.id || (pstr *= ", parent=$(p.parentid)")
     pstr *= ")"
-    return println(io, pstr)
+    return print(io, pstr)
 end
 
 const PointsGraph{O,T} = MappedNodeGraph{FramePointNode{O,T},SimpleGraph{Int}}
@@ -81,6 +82,7 @@ struct FrameAxesFunctions{O,T,FW<:FrameFunWrapper}
 end
 
 Base.getindex(pf::FrameAxesFunctions, i) = pf.fun[i]
+@inline Base.getindex(pf::FrameAxesFunctions, ::Val{I}) where {I} = getfield(pf.fun, I)
 
 function FrameAxesFunctions{T}(funs::Vararg{Function,O}) where {T,O}
     wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
@@ -131,7 +133,7 @@ function Base.show(io::IO, ax::FrameAxesNode{O,T}) where {O,T}
     pstr = "FrameAxesNode{$O, $T}(name=$(ax.name), id=$(ax.id)"
     ax.parentid == ax.id || (pstr *= ", parent=$(ax.parentid)")
     pstr *= ")"
-    return println(io, pstr)
+    return print(io, pstr)
 end
 
 const AxesGraph{O,T} = MappedNodeGraph{FrameAxesNode{O,T},SimpleGraph{Int}}
@@ -162,5 +164,5 @@ struct DirectionDefinition{O,T}
 end
 
 function Base.show(io::IO, d::DirectionDefinition{O,T}) where {O,T}
-    return println(io, "DirectionDefinition{$O, $T}(name=$(d.name), id=$(d.id), axesid=$(d.axesid))")
+    return print(io, "DirectionDefinition{$O, $T}(name=$(d.name), id=$(d.id), axesid=$(d.axesid))")
 end
