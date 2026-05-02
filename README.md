@@ -37,6 +37,34 @@ julia> Pkg.add("FrameTransformations.jl");
 For further information on this package and its tutorials please refer to the 
 [stable documentation](https://juliaspacemissiondesign.github.io/FrameTransformations.jl/stable/).
 
+## Benchmarking
+
+The repository includes simple benchmark and profiling scripts under `benchmark/`.
+Run the benchmark suite from the repository root with:
+
+```julia
+julia benchmark/runbenchmarks.jl
+```
+
+The benchmark script uses `BenchmarkTools.jl` and compares direct versus compiled paths
+for synthetic multi-hop examples and the DE440 lunar-frame rotation case at frame-system
+orders 2, 3, and 4. The DE440 suite includes both rotation and Earth-to-Moon vector
+benchmarks expressed in the lunar ME421 frame. The benchmark and test environments are tracked as Julia workspace
+projects from the root `Project.toml` on Julia 1.12+, with the legacy path-based setup
+retained for older Julia releases.
+
+You can shorten or lengthen the run with:
+
+```bash
+BENCHMARK_SECONDS=1 BENCHMARK_SAMPLES=10 julia benchmark/runbenchmarks.jl
+```
+
+For a quick CPU profile of representative direct and compiled paths, run:
+
+```julia
+julia benchmark/profile.jl
+```
+
 ## Support
 If you found this package useful, please consider starring the repository. We also encourage 
 you to take a look at other astrodynamical packages of the [JSMD](https://github.com/JuliaSpaceMissionDesign/) organisation.

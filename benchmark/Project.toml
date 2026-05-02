@@ -1,0 +1,13 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Ephemerides = "6a9c3322-c8fe-4c26-8ad6-14a6f8acd2a0"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+FrameTransformations = "5be70612-1674-42c4-a038-c376b6dc81ed"
+ReferenceFrameRotations = "74f56ac7-18b3-5285-802d-d4bd4f104033"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[sources]
+FrameTransformations = {path = ".."}
+
+[compat]
+BenchmarkTools = "1"
