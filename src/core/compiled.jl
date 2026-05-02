@@ -15,7 +15,7 @@ unlike `FunctionWrapper` which erases the type behind a C function pointer.
     This accesses `fww.fw[1].obj[]` — the first `FunctionWrapper` in the dispatch tuple
     (the `Float64` signature), then dereferences the `Base.RefValue` holding the closure.
     This depends on the internal layout of FunctionWrappers.jl (v1.x) and
-    FunctionWrappersWrappers.jl (v0.1.x). The compat bounds in Project.toml must be kept
+    FunctionWrappersWrappers.jl (v1.x). The compat bounds in Project.toml must be kept
     tight to guard against silent breakage if these packages change internals.
 """
 _extract_raw_fn(fww::FunctionWrappersWrapper) = fww.fw[1].obj[]

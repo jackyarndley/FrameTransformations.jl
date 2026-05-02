@@ -36,6 +36,7 @@ end;
         @test fax.id == 1
         @test fax.parentid == 1
         @test fax.f === faxs
+        @test faxs[1](0.0f0) == faxs[1](0.0)
     end
 end;
 

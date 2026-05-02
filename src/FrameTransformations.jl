@@ -3,7 +3,7 @@ module FrameTransformations
 using LinearAlgebra
 using StaticArrays
 using ReferenceFrameRotations
-using FunctionWrappersWrappers: FunctionWrappersWrapper
+using FunctionWrappersWrappers: FunctionWrappersWrapper, AllowAll, NoCache
 
 using JSMDUtils.Math: D¹, D², D³, arcsec2rad,
        unitvec, δunitvec, δ²unitvec, δ³unitvec,
