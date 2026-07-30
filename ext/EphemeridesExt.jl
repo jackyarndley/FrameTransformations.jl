@@ -1,6 +1,7 @@
 module EphemeridesExt
 
 import FrameTransformations: add_point_ephemeris!, add_axes_ephemeris!
+import Ephemerides
 
 using FrameTransformations: FrameSystem,
     FramePointFunctions, Translation, add_point!,
@@ -24,13 +25,22 @@ function add_point_ephemeris!(
 ) where {O,T}
 
     pid, axid = check_point_ephemeris(fr, eph, id)
-
-    funs = FramePointFunctions{O,T}(
-        t -> Translation{O}(ephem_vector3(eph, pid, id, t)),
-        t -> Translation{O}(ephem_vector6(eph, pid, id, t)),
-        t -> Translation{O}(ephem_vector9(eph, pid, id, t)),
-        t -> Translation{O}(ephem_vector12(eph, pid, id, t))
-    )
+    if isdefined(Ephemerides, :prepare_ephemeris)
+        route = Ephemerides.prepare_ephemeris(eph, pid, id)
+        funs = FramePointFunctions{O,T}(
+            t -> Translation{O}(ephem_vector3(route, t)),
+            t -> Translation{O}(ephem_vector6(route, t)),
+            t -> Translation{O}(ephem_vector9(route, t)),
+            t -> Translation{O}(ephem_vector12(route, t)),
+        )
+    else
+        funs = FramePointFunctions{O,T}(
+            t -> Translation{O}(ephem_vector3(eph, pid, id, t)),
+            t -> Translation{O}(ephem_vector6(eph, pid, id, t)),
+            t -> Translation{O}(ephem_vector9(eph, pid, id, t)),
+            t -> Translation{O}(ephem_vector12(eph, pid, id, t)),
+        )
+    end
     return add_point!(fr, name, id, axid, funs, pid)
 end
 
@@ -48,12 +58,23 @@ function add_axes_ephemeris!(
     pid = check_axes_ephemeris(fr, eph, id)
 
     if rot_seq in (:ZYX, :XYX, :XYZ, :XZX, :XZY, :YXY, :YXZ, :YZX, :YZY, :ZXY, :ZXZ, :ZYZ)
-        funs = FrameAxesFunctions{O,T}(
-            t -> Rotation{O}(angles_to_rot3(ephem_rotation3(eph, pid, id, t), rot_seq)),
-            t -> Rotation{O}(angles_to_rot6(ephem_rotation6(eph, pid, id, t), rot_seq)),
-            t -> Rotation{O}(angles_to_rot9(ephem_rotation9(eph, pid, id, t), rot_seq)),
-            t -> Rotation{O}(angles_to_rot12(ephem_rotation12(eph, pid, id, t), rot_seq))
-        )
+        rotation_sequence = Val(rot_seq)
+        if isdefined(Ephemerides, :prepare_orientation)
+            route = Ephemerides.prepare_orientation(eph, pid, id)
+            funs = FrameAxesFunctions{O,T}(
+                t -> Rotation{O}(angles_to_rot3(ephem_rotation3(route, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot6(ephem_rotation6(route, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot9(ephem_rotation9(route, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot12(ephem_rotation12(route, t), rotation_sequence)),
+            )
+        else
+            funs = FrameAxesFunctions{O,T}(
+                t -> Rotation{O}(angles_to_rot3(ephem_rotation3(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot6(ephem_rotation6(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot9(ephem_rotation9(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{O}(angles_to_rot12(ephem_rotation12(eph, pid, id, t), rotation_sequence)),
+            )
+        end
     else
         throw(ArgumentError("The rotation sequence :$rot_seq is not valid."))
     end

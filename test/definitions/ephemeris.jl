@@ -1,4 +1,6 @@
 using FrameTransformations
+using ForwardDiff
+using ReferenceFrameRotations
 using StaticArrays
 using LinearAlgebra
 using SPICE
@@ -20,6 +22,49 @@ using Ephemerides
 end;
 
 download(KERNELS; verbose=false, force=false)
+
+@testset "ASCII rotation derivative implementation" begin
+    angle_state = SVector(
+        0.2, -0.3, 0.4,
+        0.01, -0.02, 0.03,
+        -0.004, 0.005, -0.006,
+        0.0007, -0.0008, 0.0009,
+    )
+
+    derivative1_test(function_object, time) =
+        ForwardDiff.derivative(function_object, time)
+    derivative2_test(function_object, time) =
+        ForwardDiff.derivative(
+            epoch -> derivative1_test(function_object, epoch), time
+        )
+    derivative3_test(function_object, time) =
+        ForwardDiff.derivative(
+            epoch -> derivative2_test(function_object, epoch), time
+        )
+
+    for sequence in (
+        :ZYX, :XYX, :XYZ, :XZX, :XZY, :YXY,
+        :YXZ, :YZX, :YZY, :ZXY, :ZXZ, :ZYZ,
+    )
+        rotation_at_offset = offset -> begin
+            angles = SVector{3}(ntuple(index -> begin
+                angle_state[index] +
+                angle_state[3 + index] * offset +
+                angle_state[6 + index] * offset^2 / 2 +
+                angle_state[9 + index] * offset^3 / 6
+            end, 3))
+            angle_to_dcm(angles..., sequence)
+        end
+
+        rotation = FrameTransformations.angles_to_rot12(
+            angle_state, Val(sequence)
+        )
+        @test rotation[1] ≈ rotation_at_offset(0.0)
+        @test rotation[2] ≈ derivative1_test(rotation_at_offset, 0.0)
+        @test rotation[3] ≈ derivative2_test(rotation_at_offset, 0.0)
+        @test rotation[4] ≈ derivative3_test(rotation_at_offset, 0.0)
+    end
+end
 
 @testset "Interface" verbose = false begin
     frames = FrameSystem{2,Float64}()
@@ -86,6 +131,11 @@ end;
     @test_nowarn vector3(frames, 10, 399, 1, 1.0)
     @test_nowarn vector9(frames, 10, 399, 1, 1.0)
     @test_nowarn vector12(frames, 10, 399, 1, 1.0)
+
+    earth_state = compile_translation(frames, 3, 399, 1, Val(2))
+    @test earth_state(1.0) == vector6(frames, 3, 399, 1, 1.0)
+    earth_state(1.0) # compile before measuring the steady-state call
+    @test (@allocated earth_state(1.0)) == 0
 
     kclear()
 end;

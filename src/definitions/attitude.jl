@@ -16,11 +16,12 @@ function add_axes_fixed_quaternion!(
 end
 
 """
-    add_axes_fixed_angles!(frames, name::Symbol, id::Int, parent, θ::AbstractVector{N}, seq::Symbol)
+    add_axes_fixed_angles!(frames, name::Symbol, id::Int, parent,
+        angles::AbstractVector{N}, seq::Symbol)
    
 Add axes `name` with id `id` to `frames` with a fixed-offset from `parent`. 
 Fixed offset axes have a constant orientation with respect to their `parent` axes, 
-represented by Euler angles `θ`.
+represented by Euler `angles`.
 
 The rotation sequence is defined by `seq` specifing the rotation axes. The possible
 values depends on the number of rotations as follows:
@@ -34,24 +35,39 @@ values depends on the number of rotations as follows:
 See also [`add_axes_fixedoffset!`](@ref).
 """
 function add_axes_fixed_angles!(
-    frames::FrameSystem, name::Symbol, id::Int, parent, θ::AbstractVector{N}, seq::Symbol
+    frames::FrameSystem,
+    name::Symbol,
+    id::Int,
+    parent,
+    angles::AbstractVector{N},
+    seq::Symbol,
 ) where {N}
-    add_axes_fixedoffset!(frames, name, id, parent, angle_to_dcm(θ..., seq))
+    add_axes_fixedoffset!(
+        frames, name, id, parent, angle_to_dcm(angles..., seq)
+    )
 end
 
 """
-    add_axes_fixed_angleaxis!(frames, name::Symbol, id::Int, parent, ϕ::Number, v::AbstractVector{N})
+    add_axes_fixed_angleaxis!(frames, name::Symbol, id::Int, parent,
+        angle::Number, axis::AbstractVector{N})
    
 Add axes `name` with id `id` to `frames` with a fixed-offset from `parent`. 
 Fixed offset axes have a constant orientation with respect to their `parent` axes, 
-represented by Euler angle `ϕ` [rad] and Euler axis `v`.
+represented by Euler `angle` [rad] and Euler `axis`.
 
 ### See also 
 See also [`add_axes_fixedoffset!`](@ref).
 """
 function add_axes_fixed_angleaxis!(
-    frames::FrameSystem, name::Symbol, id::Int, parent, ϕ::Number, v::AbstractVector{N}
+    frames::FrameSystem,
+    name::Symbol,
+    id::Int,
+    parent,
+    angle::Number,
+    axis::AbstractVector{N},
 ) where {N}
-    naxis = unitvec(v)
-    add_axes_fixedoffset!(frames, name, id, parent, angleaxis_to_dcm(ϕ, naxis))
+    normalized_axis = unitvec(axis)
+    add_axes_fixedoffset!(
+        frames, name, id, parent, angleaxis_to_dcm(angle, normalized_axis)
+    )
 end

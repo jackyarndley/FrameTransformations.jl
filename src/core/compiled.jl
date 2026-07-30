@@ -1,24 +1,8 @@
 
 # ==========================================================================================
-# Compiled fast-path: opt-in API that extracts raw closures from FunctionWrappers,
+# Compiled fast-path: opt-in API that retains concrete raw closures alongside wrappers,
 # giving users zero-overhead, AD-transparent callables for the hot path.
 # ==========================================================================================
-
-"""
-    _extract_raw_fn(fww::FunctionWrappersWrapper)
-
-Extract the original Julia closure from a `FunctionWrappersWrapper`. The raw closure
-preserves its concrete type, enabling the compiler to inline and differentiate through it —
-unlike `FunctionWrapper` which erases the type behind a C function pointer.
-
-!!! note "Internal layout dependency"
-    This accesses `fww.fw[1].obj[]` — the first `FunctionWrapper` in the dispatch tuple
-    (the `Float64` signature), then dereferences the `Base.RefValue` holding the closure.
-    This depends on the internal layout of FunctionWrappers.jl (v1.x) and
-    FunctionWrappersWrappers.jl (v1.x). The compat bounds in Project.toml must be kept
-    tight to guard against silent breakage if these packages change internals.
-"""
-_extract_raw_fn(fww::FunctionWrappersWrapper) = fww.fw[1].obj[]
 
 # ------------------------------------------------------------------------------------------
 # CompiledRotation
@@ -159,10 +143,10 @@ end
 
 function _compile_rotation_pair(::Val{N}, from::FrameAxesNode, to::FrameAxesNode) where {N}
     if from.id == to.parentid
-        raw_fn = _extract_raw_fn(to.f[Val(N)])
+        raw_fn = _raw_function(to.f, Val(N))
         return CompiledRotation{N,false}(raw_fn)
     else
-        raw_fn = _extract_raw_fn(from.f[Val(N)])
+        raw_fn = _raw_function(from.f, Val(N))
         return CompiledRotation{N,true}(raw_fn)
     end
 end
@@ -227,9 +211,9 @@ end
 
 function _compile_point_pair(::Val{N}, from::FramePointNode, to::FramePointNode) where {N}
     if from.id == to.parentid
-        return to.axesid, _extract_raw_fn(to.f[Val(N)]), false
+        return to.axesid, _raw_function(to.f, Val(N)), false
     else
-        return from.axesid, _extract_raw_fn(from.f[Val(N)]), true
+        return from.axesid, _raw_function(from.f, Val(N)), true
     end
 end
 
@@ -356,7 +340,7 @@ function compile_direction(fr::FrameSystem{O}, name::Symbol, axes, ::Val{N}) whe
     end
 
     node = directions(fr)[name]
-    raw_fn = _extract_raw_fn(node.f[Val(N)])
+    raw_fn = _raw_function(node.f, Val(N))
     thisaxid = node.axesid
     axid = axes_id(fr, axes)
 

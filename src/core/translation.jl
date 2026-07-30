@@ -182,6 +182,13 @@ function Translation{S}(v::AbstractVector{T}) where {S,T}
     return Translation{S}(SVector(v...))
 end
 
+@inline function _translation_from_parts(
+    ::Val{O}, parts::Vararg{AbstractVector,S}
+) where {O,S}
+    vectors = ntuple(index -> SVector{3}(parts[index]), Val(S))
+    return Translation{O}(Translation(vectors))
+end
+
 # ------------------------------------------------------------------------------------------
 # OPERATIONS
 # ------------------------------------------------------------------------------------------
@@ -206,7 +213,7 @@ end
 
 @generated function Base.:(+)(t1::Translation{S1}, t2::Translation{S2}) where {S1,S2}
     expr = Expr(:call, :tuple)
-    if S1 ≥ S2
+    if S1 >= S2
         for i in 1:S2
             push!(
                 expr.args, Expr(:call, :(+), Expr(:ref, :t1, i), Expr(:ref, :t2, i))
@@ -248,7 +255,7 @@ end
 
 @generated function Base.:(-)(t1::Translation{S1}, t2::Translation{S2}) where {S1,S2}
     expr = Expr(:call, :tuple)
-    if S1 ≥ S2
+    if S1 >= S2
         for i in 1:S2
             push!(
                 expr.args, Expr(:call, :(-), Expr(:ref, :t1, i), Expr(:ref, :t2, i))

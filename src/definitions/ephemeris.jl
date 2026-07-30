@@ -189,31 +189,98 @@ function check_axes_ephemeris(
     return parentid
 end
 
-# Functions for an easier definition\handling of ephemeris axes
-@inline function angles_to_rot3(θ, seq::Symbol)
-    @inbounds angle_to_dcm(θ[1], θ[2], θ[3], seq)
+# Functions for an easier definition and handling of ephemeris axes.
+@inline function _axis_generator(::Type{T}, ::Val{:X}) where {T}
+    return DCM(SMatrix{3,3,T,9}(
+        zero(T), zero(T), zero(T),
+        zero(T), zero(T), -one(T),
+        zero(T), one(T), zero(T),
+    ))
 end
 
-@inline function angles_to_rot6(θ, seq::Symbol)
-    return (
-        angle_to_dcm(θ[1], θ[2], θ[3], seq),
-        _3angles_to_δdcm(θ, seq)
-    )
+@inline function _axis_generator(::Type{T}, ::Val{:Y}) where {T}
+    return DCM(SMatrix{3,3,T,9}(
+        zero(T), zero(T), one(T),
+        zero(T), zero(T), zero(T),
+        -one(T), zero(T), zero(T),
+    ))
 end
 
-@inline function angles_to_rot9(θ, seq::Symbol)
-    return (
-        angle_to_dcm(θ[1], θ[2], θ[3], seq),
-        _3angles_to_δdcm(θ, seq),
-        _3angles_to_δ²dcm(θ, seq)
-    )
+@inline function _axis_generator(::Type{T}, ::Val{:Z}) where {T}
+    return DCM(SMatrix{3,3,T,9}(
+        zero(T), -one(T), zero(T),
+        one(T), zero(T), zero(T),
+        zero(T), zero(T), zero(T),
+    ))
 end
 
-@inline function angles_to_rot12(θ, seq::Symbol)
-    return (
-        angle_to_dcm(θ[1], θ[2], θ[3], seq),
-        _3angles_to_δdcm(θ, seq),
-        _3angles_to_δ²dcm(θ, seq),
-        _3angles_to_δ³dcm(θ, seq)
-    )
+@inline function _elementary_rotation(
+    angle,
+    rate,
+    acceleration,
+    jerk,
+    axis::Val{Axis},
+    ::Val{O},
+) where {Axis,O}
+    matrix = angle_to_dcm(angle, Axis)
+    generator = _axis_generator(eltype(matrix), axis)
+    generator2 = generator * generator
+    first = rate * generator * matrix
+
+    O == 1 && return Rotation(matrix)
+
+    second =
+        acceleration * generator * matrix +
+        rate^2 * generator2 * matrix
+    O == 2 && return Rotation(matrix, first)
+
+    generator3 = generator2 * generator
+    third =
+        jerk * generator * matrix +
+        3 * rate * acceleration * generator2 * matrix +
+        rate^3 * generator3 * matrix
+    O == 3 && return Rotation(matrix, first, second)
+
+    return Rotation(matrix, first, second, third)
 end
+
+@generated function _angles_to_rotation(
+    angles,
+    ::Val{Sequence},
+    ::Val{O},
+) where {Sequence,O}
+    axes = Symbol.(collect(String(Sequence)))
+    length(axes) == 3 || throw(
+        ArgumentError("expected a three-axis rotation sequence, got $Sequence")
+    )
+
+    rotations = map(1:3) do index
+        rate = O >= 2 ? :(angles[$(3 + index)]) : :(zero(angles[$index]))
+        acceleration =
+            O >= 3 ? :(angles[$(6 + index)]) : :(zero(angles[$index]))
+        jerk = O >= 4 ? :(angles[$(9 + index)]) : :(zero(angles[$index]))
+        return :(
+            _elementary_rotation(
+                angles[$index],
+                $rate,
+                $acceleration,
+                $jerk,
+                Val($(QuoteNode(axes[index]))),
+                Val($O),
+            )
+        )
+    end
+
+    return quote
+        @inbounds $(rotations[3]) * $(rotations[2]) * $(rotations[1])
+    end
+end
+
+@inline angles_to_rot3(angles, sequence::Val) =
+    _angles_to_rotation(angles, sequence, Val(1))
+@inline angles_to_rot6(angles, sequence::Val) =
+    _angles_to_rotation(angles, sequence, Val(2))
+@inline angles_to_rot9(angles, sequence::Val) =
+    _angles_to_rotation(angles, sequence, Val(3))
+@inline angles_to_rot12(angles, sequence::Val) =
+    _angles_to_rotation(angles, sequence, Val(4))

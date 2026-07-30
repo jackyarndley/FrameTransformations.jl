@@ -5,27 +5,34 @@
 # ------
 # Functions
 
-struct FramePointFunctions{O,T,FW<:FrameFunWrapper}
+struct FramePointFunctions{O,T,FW<:FrameFunWrapper,RF<:Tuple}
     fun::NTuple{O,FW}
+    raw::RF
 end
 
 Base.getindex(pf::FramePointFunctions, i) = pf.fun[i]
 @inline Base.getindex(pf::FramePointFunctions, ::Val{I}) where {I} = getfield(pf.fun, I)
+@inline _raw_function(pf::FramePointFunctions, ::Val{I}) where {I} =
+    getfield(pf.raw, I)
 
-function FramePointFunctions{T}(funs::Vararg{Function,O}) where {T,O}
+function _frame_point_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
     wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
-    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+    return FramePointFunctions{
+        O,T,eltype(typeof(wrappers)),typeof(funs)
+    }(wrappers, funs)
 end
 
-function FramePointFunctions{O,T}(funs::Function...) where {O,T}
+function FramePointFunctions{T}(funs::Vararg{Any,O}) where {T,O}
+    return _frame_point_functions(Val(O), T, funs)
+end
+
+function FramePointFunctions{O,T}(funs...) where {O,T}
     O > length(funs) && throw(ArgumentError("required at least $O functions."))
-    wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
-    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+    return _frame_point_functions(Val(O), T, funs)
 end
 
-function FramePointFunctions{O,T}(fun::Function) where {O,T}
-    wrappers = ntuple(_ -> _frame_point_fun_wrapper(Val(O), T, fun), Val(O))
-    return FramePointFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+function FramePointFunctions{O,T}(fun) where {O,T}
+    return _frame_point_functions(Val(O), T, ntuple(_ -> fun, Val(O)))
 end
 
 function FramePointFunctions{O,T}() where {O,T}
@@ -77,27 +84,34 @@ const PointsGraph{O,T} = MappedNodeGraph{FramePointNode{O,T},SimpleGraph{Int}}
 # ------
 # Functions
 
-struct FrameAxesFunctions{O,T,FW<:FrameFunWrapper}
+struct FrameAxesFunctions{O,T,FW<:FrameFunWrapper,RF<:Tuple}
     fun::NTuple{O,FW}
+    raw::RF
 end
 
 Base.getindex(pf::FrameAxesFunctions, i) = pf.fun[i]
 @inline Base.getindex(pf::FrameAxesFunctions, ::Val{I}) where {I} = getfield(pf.fun, I)
+@inline _raw_function(pf::FrameAxesFunctions, ::Val{I}) where {I} =
+    getfield(pf.raw, I)
 
-function FrameAxesFunctions{T}(funs::Vararg{Function,O}) where {T,O}
+function _frame_axes_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
     wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
-    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+    return FrameAxesFunctions{
+        O,T,eltype(typeof(wrappers)),typeof(funs)
+    }(wrappers, funs)
 end
 
-function FrameAxesFunctions{O,T}(funs::Function...) where {O,T}
+function FrameAxesFunctions{T}(funs::Vararg{Any,O}) where {T,O}
+    return _frame_axes_functions(Val(O), T, funs)
+end
+
+function FrameAxesFunctions{O,T}(funs...) where {O,T}
     O > length(funs) && throw(ArgumentError("required at least $O functions."))
-    wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
-    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+    return _frame_axes_functions(Val(O), T, funs)
 end
 
-function FrameAxesFunctions{O,T}(fun::Function) where {O,T}
-    wrappers = ntuple(_ -> _frame_axes_fun_wrapper(Val(O), T, fun), Val(O))
-    return FrameAxesFunctions{O,T,eltype(typeof(wrappers))}(wrappers)
+function FrameAxesFunctions{O,T}(fun) where {O,T}
+    return _frame_axes_functions(Val(O), T, ntuple(_ -> fun, Val(O)))
 end
 
 function FrameAxesFunctions{O,T}() where {O,T}

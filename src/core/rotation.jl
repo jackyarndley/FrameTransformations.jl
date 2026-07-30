@@ -284,8 +284,8 @@ end
     end
 end
 
-function Rotation(m::DCM{T}, ω::AbstractVector) where {T}
-    dm = DCM(ddcm(m, SVector(ω)))
+function Rotation(m::DCM{T}, angular_velocity::AbstractVector) where {T}
+    dm = DCM(ddcm(m, SVector(angular_velocity)))
     return Rotation((m, dm))
 end
 
@@ -300,15 +300,15 @@ end
 
     expr = Expr(:call, :tuple)
     for j in 1:(3S)
-        Oⱼ = (j - 1) ÷ 3 + 1
+        column_order = div(j - 1, 3) + 1
         for i in 1:(3S)
-            Oᵢ = (i - 1) ÷ 3 + 1
-            if Oⱼ > Oᵢ
+            row_order = div(i - 1, 3) + 1
+            if column_order > row_order
                 push!(expr.args, Expr(:call, :zero, T))
             else
-                row = i - 3 * (Oᵢ - 1)
-                col = j - 3 * (Oⱼ - 1)
-                rom = Oᵢ - Oⱼ + 1
+                row = i - 3 * (row_order - 1)
+                col = j - 3 * (column_order - 1)
+                rom = row_order - column_order + 1
                 push!(
                     expr.args,
                     Expr(
@@ -368,9 +368,9 @@ end
         sum_expr = Expr(:call, :+)
         for j in 1:i
             c = binomial(i - 1, j - 1)
-            aᵢ = Expr(:ref, :A, i - j + 1)
-            bᵢ = Expr(:ref, :B, j)
-            push!(sum_expr.args, Expr(:call, :*, c, aᵢ, bᵢ))
+            left_term = Expr(:ref, :A, i - j + 1)
+            right_term = Expr(:ref, :B, j)
+            push!(sum_expr.args, Expr(:call, :*, c, left_term, right_term))
         end
         push!(expr.args, sum_expr)
     end

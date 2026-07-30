@@ -5,10 +5,27 @@ using StaticArrays
 using ReferenceFrameRotations
 using FunctionWrappersWrappers: FunctionWrappersWrapper, AllowAll, NoCache
 
-using JSMDUtils.Math: D¹, D², D³, arcsec2rad,
-       unitvec, δunitvec, δ²unitvec, δ³unitvec,
-       cross3, cross6, cross9, cross12,
-       angle_to_δdcm, _3angles_to_δdcm, _3angles_to_δ²dcm, _3angles_to_δ³dcm
+using JSMDUtils.Math:
+    arcsec2rad,
+    unitvec,
+    cross3,
+    cross6,
+    cross9,
+    cross12
+using JSMDUtils.Autodiff: derivative
+
+# ASCII derivative helpers.
+@inline derivative1(function_object, time) =
+    derivative(function_object, time)
+@inline derivative2(function_object, time) =
+    derivative(epoch -> derivative(function_object, epoch), time)
+@inline derivative3(function_object, time) = derivative(
+    outer_epoch -> derivative(
+        inner_epoch -> derivative(function_object, inner_epoch),
+        outer_epoch,
+    ),
+    time,
+)
 
 using JSMDInterfaces.Graph: AbstractJSMDGraphNode,
        add_edge!, add_vertex!, get_path, has_vertex
@@ -26,8 +43,7 @@ using JSMDInterfaces.Ephemeris: AbstractEphemerisProvider,
 
 using JSMDInterfaces.Interface: @interface
 
-using JSMDInterfaces.Bodies: body_rotational_elements, ∂body_rotational_elements,
-       ∂²body_rotational_elements, ∂³body_rotational_elements
+using JSMDInterfaces.Bodies: body_rotational_elements
 
 using IERSConventions: iers_bias, iers_obliquity,
        iers_rot3_gcrf_to_itrf, iers_rot6_gcrf_to_itrf,
@@ -35,8 +51,6 @@ using IERSConventions: iers_bias, iers_obliquity,
        iers_rot3_gcrf_to_mod, iers_rot3_gcrf_to_tod, iers_rot3_gcrf_to_gtod,
        iers_rot3_gcrf_to_pef, iers_rot3_gcrf_to_cirf, iers_rot3_gcrf_to_tirf,
        IERSModel, iers2010a, iers2010b, iers1996
-
-using ForwardDiff
 
 # ==========================================================================================
 # Core

@@ -1,6 +1,6 @@
 
 """
-    add_axes_bcrtod!(fr, name, id, center; deriv=true)
+    add_axes_bcrtod!(fr, name, id, center; deriv=false)
 
 Add Body-Centered Rotating (BCR), True-of-Date (TOD) axes with `name` and `id` to `fr`. 
 The center point (i.e., the reference body) is `center`.
@@ -45,7 +45,10 @@ function add_axes_bcrtod!(
     else
         add_axes_rotating!(
             fr, name, id, AXESID_ICRF,
-            t -> _bcrtod(t, vid), t -> _∂bcrtod(t, vid), t -> _∂²bcrtod(t, vid), t -> _∂³bcrtod(t, vid)
+            t -> _bcrtod(t, vid),
+            t -> _bcrtod_derivative1(t, vid),
+            t -> _bcrtod_derivative2(t, vid),
+            t -> _bcrtod_derivative3(t, vid),
         )
     end
 end
@@ -88,8 +91,13 @@ function add_axes_bci2000!(fr::FrameSystem, name::Symbol, id::Int, center)
     end
 
     # evaluate rotational elements and build the DCM 
-    α2000, δ2000, _ = body_rotational_elements(0, vid)
-    dcm = angle_to_dcm(π / 2 + α2000, π / 2 - δ2000, :ZX)
+    right_ascension_j2000, declination_j2000, _ =
+        body_rotational_elements(0, vid)
+    dcm = angle_to_dcm(
+        pi / 2 + right_ascension_j2000,
+        pi / 2 - declination_j2000,
+        :ZX,
+    )
 
     # insert the new axes
     return add_axes_fixedoffset!(fr, name, id, AXESID_ICRF, dcm)
@@ -97,42 +105,39 @@ function add_axes_bci2000!(fr::FrameSystem, name::Symbol, id::Int, center)
 end
 
 function _bcrtod(seconds, val)
-    α, δ, w = body_rotational_elements(seconds / CENTURY2SEC, val)
-    return angle_to_dcm(π / 2 + α, π / 2 - δ, w, :ZXZ)
+    right_ascension, declination, prime_meridian =
+        body_rotational_elements(seconds / CENTURY2SEC, val)
+    return angle_to_dcm(
+        pi / 2 + right_ascension,
+        pi / 2 - declination,
+        prime_meridian,
+        :ZXZ,
+    )
 end
 
-function _∂bcrtod(seconds, val)
-    T = seconds / Tempo.CENTURY2SEC
-    α, δ, w = body_rotational_elements(T, val)
-    dα, dδ, dw = ∂body_rotational_elements(T, val)
-
-    R = angle_to_dcm(π / 2 + α, π / 2 - δ, w, :ZXZ)
-    dR = angle_to_δdcm((π / 2 + α, dα), (π / 2 - δ, -dδ), (w, dw), :ZXZ)
-    return R, dR
+function _bcrtod_derivative1(seconds, val)
+    rotation_function = epoch -> _bcrtod(epoch, val)
+    return (
+        rotation_function(seconds),
+        derivative1(rotation_function, seconds),
+    )
 end
 
-function _∂²bcrtod(seconds, val)
-    T = seconds / Tempo.CENTURY2SEC
-    α, δ, w = body_rotational_elements(T, val)
-    dα, dδ, dw = ∂body_rotational_elements(T, val)
-    d²α, d²δ, d²w = ∂²body_rotational_elements(T, val)
-
-    R = angle_to_dcm(π / 2 + α, π / 2 - δ, w, :ZXZ)
-    dR = angle_to_δdcm((π / 2 + α, dα), (π / 2 - δ, -dδ), (w, dw), :ZXZ)
-    d²R = angle_to_δ²dcm((π / 2 + α, dα, d²α), (π / 2 - δ, -dδ, -d²δ), (w, dw, d²w), :ZXZ)
-    return R, dR, d²R
+function _bcrtod_derivative2(seconds, val)
+    rotation_function = epoch -> _bcrtod(epoch, val)
+    return (
+        rotation_function(seconds),
+        derivative1(rotation_function, seconds),
+        derivative2(rotation_function, seconds),
+    )
 end
 
-function _∂³bcrtod(seconds, val)
-    T = seconds / Tempo.CENTURY2SEC
-    α, δ, w = body_rotational_elements(T, val)
-    dα, dδ, dw = ∂body_rotational_elements(T, val)
-    d²α, d²δ, d²w = ∂²body_rotational_elements(T, val)
-    d³α, d³δ, d³w = ∂³body_rotational_elements(T, val)
-
-    R = angle_to_dcm(π / 2 + α, π / 2 - δ, w, :ZXZ)
-    dR = angle_to_δdcm((π / 2 + α, dα), (π / 2 - δ, -dδ), (w, dw), :ZXZ)
-    d²R = angle_to_δ²dcm((π / 2 + α, dα, d²α), (π / 2 - δ, -dδ, -d²δ), (w, dw, d²w), :ZXZ)
-    d³R = angle_to_δ³dcm((π / 2 + α, dα, d²α, d³α), (π / 2 - δ, -dδ, -d²δ, -d³δ), (w, dw, d²w, d³w), :ZXZ)
-    return R, dR, d²R, d³R
+function _bcrtod_derivative3(seconds, val)
+    rotation_function = epoch -> _bcrtod(epoch, val)
+    return (
+        rotation_function(seconds),
+        derivative1(rotation_function, seconds),
+        derivative2(rotation_function, seconds),
+        derivative3(rotation_function, seconds),
+    )
 end

@@ -1,6 +1,7 @@
 
 """
-    add_direction!(frames, name::Symbol, axes, fun, δfun=nothing, δ²fun=nothing, δ³fun=nothing)
+    add_direction!(frames, name::Symbol, axes, fun,
+        first_derivative=nothing, second_derivative=nothing, third_derivative=nothing)
 
 Add a new direction node to `frames`. The orientation of these direction depends only 
 on time and is computed through the custom functions provided by the user. 
@@ -8,27 +9,29 @@ on time and is computed through the custom functions provided by the user.
 The input functions must accept only time as argument and their outputs must be as follows: 
 
 - `fun`: return a direction vector.
-- `δfun`: return a direction vector and its 1st order time derivative.
-- `δ²fun`: return a direction vector and its 1st and 2nd order time derivatives.
-- `δ³fun`: return a direction vector and its 1st, 2nd and 3rd order time derivatives.
+- `first_derivative`: return a direction vector and its first time derivative.
+- `second_derivative`: return a direction vector and its first two time derivatives.
+- `third_derivative`: return a direction vector and its first three time derivatives.
 
-If `δfun`, `δ²fun` or `δ³fun` are not provided, they are computed via automatic differentiation.
+Missing derivative functions are computed via automatic differentiation.
 
 !!! warning 
     It is expected that the input functions and their outputs have the correct signature. This 
     function does not perform any checks on the output types. 
 """
 function add_direction!(
-    frames::FrameSystem{O,N}, name::Symbol, axes, fun::Function,
-    δfun=nothing, δ²fun=nothing, δ³fun=nothing
+    frames::FrameSystem{O,N}, name::Symbol, axes, fun,
+    first_derivative=nothing, second_derivative=nothing, third_derivative=nothing
 ) where {O,N}
     has_direction(frames, name) && throw(
         ArgumentError("direction with name=$name is already registered in the frame system.")
     )
 
-    for (order, fcn) in enumerate((δfun, δ²fun, δ³fun))
-        if (O < order + 1 && !isnothing(fcn))
-            @warn "ignoring $fcn, frame system order is less than $(order+1)"
+    for (derivative_order, function_object) in enumerate(
+        (first_derivative, second_derivative, third_derivative)
+    )
+        if O < derivative_order + 1 && !isnothing(function_object)
+            @warn "ignoring $function_object, frame system order is less than $(derivative_order + 1)"
         end
     end
 
@@ -36,42 +39,71 @@ function add_direction!(
         t -> Translation{O}(fun(t)),
 
         # First derivative
-        if isnothing(δfun)
-            t -> Translation{O}(vcat(fun(t), D¹(fun, t)))
+        if isnothing(first_derivative)
+            t -> _translation_from_parts(
+                Val(O), fun(t), derivative1(fun, t)
+            )
         else
-            t -> Translation{O}(δfun(t))
+            t -> Translation{O}(first_derivative(t))
         end,
 
         # Second derivative
-        if isnothing(δ²fun)
+        if isnothing(second_derivative)
             (
-                if isnothing(δfun)
-                    t -> Translation{O}(vcat(fun(t), D¹(fun, t), D²(fun, t)))
+                if isnothing(first_derivative)
+                    t -> _translation_from_parts(
+                        Val(O),
+                        fun(t),
+                        derivative1(fun, t),
+                        derivative2(fun, t),
+                    )
                 else
-                    t -> Translation{O}(vcat(δfun(t), D²(fun, t)))
+                    t -> Translation{O}(
+                        SVector(
+                            first_derivative(t)...,
+                            derivative2(fun, t)...,
+                        )
+                    )
                 end
             )
         else
-            t -> Translation{O}(δ²fun(t))
+            t -> Translation{O}(second_derivative(t))
         end,
 
         # Third derivative 
-        if isnothing(δ³fun)
+        if isnothing(third_derivative)
             (
-                if isnothing(δ²fun)
+                if isnothing(second_derivative)
                     (
-                        if isnothing(δfun)
-                            t -> Translation{O}(vcat(fun(t), D¹(fun, t), D²(fun, t), D³(fun, t)))
+                        if isnothing(first_derivative)
+                            t -> _translation_from_parts(
+                                Val(O),
+                                fun(t),
+                                derivative1(fun, t),
+                                derivative2(fun, t),
+                                derivative3(fun, t),
+                            )
                         else
-                            t -> Translation{O}(vcat(δfun(t), D²(fun, t), D³(fun, t)))
+                            t -> Translation{O}(
+                                SVector(
+                                    first_derivative(t)...,
+                                    derivative2(fun, t)...,
+                                    derivative3(fun, t)...,
+                                )
+                            )
                         end
                     )
                 else
-                    t -> Translation{O}(vcat(δ²fun(t), D³(fun, t)))
+                    t -> Translation{O}(
+                        SVector(
+                            second_derivative(t)...,
+                            derivative3(fun, t)...,
+                        )
+                    )
                 end
             )
         else
-            t -> Translation{O}(δ³fun(t))
+            t -> Translation{O}(third_derivative(t))
         end,
     )
 

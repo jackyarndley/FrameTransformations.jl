@@ -1,4 +1,5 @@
 using FrameTransformations
+using DifferentiationInterface
 using ReferenceFrameRotations
 using StaticArrays
 using ForwardDiff
@@ -10,7 +11,7 @@ using Test
 
 # Build a FrameSystem with analytical point and rotating axes for testing
 function build_test_framesystem()
-    fr = FrameSystem{2,Float64}()
+    fr = FrameSystem{4,Float64}()
     add_axes!(fr, :ICRF, 1)
 
     # Simple rotating axes around Z
@@ -20,11 +21,98 @@ function build_test_framesystem()
     # Root point + dynamical point with known analytical position/velocity
     add_point!(fr, :Root, 1, 1)
     add_point_dynamical!(fr, :Target, 2, 1, 1, t -> SVector(cos(t), sin(t), 1.0))
+    add_direction!(fr, :LineOfSight, 1, t -> SVector(cos(t), sin(t), 0.0))
 
     return fr
 end
 
 const _fr = build_test_framesystem()
+
+@testset "DifferentiationInterface backend compatibility" begin
+    time = 1.0
+    forward_backend = AutoForwardDiff()
+    finite_backend = AutoFiniteDiff(fdtype=Val(:central))
+    reverse_backend = AutoZygote()
+
+    position = epoch -> vector3(_fr, 1, 2, 1, epoch)
+    state6 = epoch -> vector6(_fr, 1, 2, 1, epoch)
+    rotation_sum = epoch -> sum(rotation3(_fr, 1, 2, epoch).m[1])
+
+    expected_velocity = vector6(_fr, 1, 2, 1, time)[4:6]
+    expected_state6_derivative = vector9(_fr, 1, 2, 1, time)[4:9]
+    expected_rotation_sum_derivative =
+        sum(rotation6(_fr, 1, 2, time).m[2])
+
+    for backend in (forward_backend, reverse_backend)
+        @test derivative(position, backend, time) ≈
+              expected_velocity atol=1e-12 rtol=1e-12
+        @test derivative(state6, backend, time) ≈
+              expected_state6_derivative atol=1e-12 rtol=1e-12
+        @test derivative(rotation_sum, backend, time) ≈
+              expected_rotation_sum_derivative atol=1e-12 rtol=1e-12
+    end
+
+    @test derivative(position, finite_backend, time) ≈
+          expected_velocity atol=1e-7 rtol=1e-7
+    @test derivative(state6, finite_backend, time) ≈
+          expected_state6_derivative atol=1e-6 rtol=1e-6
+end
+
+@testset "analytic rule coverage for every transform order" begin
+    time = 0.7
+    reverse_backend = AutoZygote()
+
+    for (function_object, next_function) in (
+        (vector3, vector6),
+        (vector6, vector9),
+        (vector9, vector12),
+    )
+        scalar_state = epoch -> sum(function_object(_fr, 1, 2, 1, epoch))
+        next_state = next_function(_fr, 1, 2, 1, time)
+        width = length(function_object(_fr, 1, 2, 1, time))
+        expected = sum(next_state[4:(3 + width)])
+        @test derivative(scalar_state, reverse_backend, time) ≈
+              expected atol=1e-12 rtol=1e-12
+    end
+
+    for (function_object, next_function) in (
+        (direction3, direction6),
+        (direction6, direction9),
+        (direction9, direction12),
+    )
+        scalar_direction =
+            epoch -> sum(function_object(_fr, :LineOfSight, 1, epoch))
+        next_state = next_function(_fr, :LineOfSight, 1, time)
+        width = length(function_object(_fr, :LineOfSight, 1, time))
+        expected = sum(next_state[4:(3 + width)])
+        @test derivative(scalar_direction, reverse_backend, time) ≈
+              expected atol=1e-12 rtol=1e-12
+    end
+
+    for (function_object, next_function) in (
+        (rotation3, rotation6),
+        (rotation6, rotation9),
+        (rotation9, rotation12),
+    )
+        scalar_rotation =
+            epoch -> sum(sum, function_object(_fr, 1, 2, epoch).m)
+        next_state = next_function(_fr, 1, 2, time)
+        component_count = length(function_object(_fr, 1, 2, time))
+        expected = sum(sum, next_state.m[2:(component_count + 1)])
+        @test derivative(scalar_rotation, reverse_backend, time) ≈
+              expected atol=1e-12 rtol=1e-12
+    end
+
+    for scalar_function in (
+        epoch -> sum(vector12(_fr, 1, 2, 1, epoch)),
+        epoch -> sum(direction12(_fr, :LineOfSight, 1, epoch)),
+        epoch -> sum(sum, rotation12(_fr, 1, 2, epoch).m),
+    )
+        expected = ForwardDiff.derivative(scalar_function, time)
+        @test derivative(scalar_function, reverse_backend, time) ≈
+              expected atol=1e-11 rtol=1e-11
+    end
+end
 
 # --------------------------------------------------------------------------
 # vector3

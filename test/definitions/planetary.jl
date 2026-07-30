@@ -31,5 +31,14 @@ R = rotation12(frames, :ICRF, :BCR, 12.345)
 @test R[3] ≈ DCM(0.0I)
 @test R[4] ≈ DCM(0.0I)
 
+@test_nowarn add_axes_bcrtod!(frames, :BCR_DERIVATIVES, -3, -1; deriv=true)
+
+R = rotation12(frames, :ICRF, :BCR_DERIVATIVES, 12.345)
+
+@test R[1] ≈ DCM(1.0I)
+@test R[2] ≈ DCM(0.0I)
+@test R[3] ≈ DCM(0.0I)
+@test R[4] ≈ DCM(0.0I)
+
 @test_throws Exception add_axes_bci2000!(frames, :BCR, -2, -10)
 @test_throws Exception add_axes_bcrtod!(frames, :BCR, -2, -10)

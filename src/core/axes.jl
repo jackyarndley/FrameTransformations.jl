@@ -108,15 +108,15 @@ despite the rotation depends on time).
 See also [`add_axes!`](@ref).
 """
 function add_axes_projected!(
-    frames::FrameSystem{O,T}, name::Symbol, id::Int, parent, fun::Function
+    frames::FrameSystem{O,T}, name::Symbol, id::Int, parent, fun
 ) where {O,T}
     funs = FrameAxesFunctions{O,T}(t -> Rotation{O}(fun(t)))
     add_axes!(frames, name, id, funs, axes_id(frames, parent))
 end
 
 """
-    add_axes_rotating!(frames, name::Symbol, id::Int, parent, fun, δfun=nothing, 
-        δ²fun=nothing, δ³fun=nothing)
+    add_axes_rotating!(frames, name::Symbol, id::Int, parent, fun,
+        first_derivative=nothing, second_derivative=nothing, third_derivative=nothing)
    
 Add `axes` as a set of rotating axes to `frames`. The orientation of these axes depends only 
 on time and is computed through the custom functions provided by the user. 
@@ -124,11 +124,11 @@ on time and is computed through the custom functions provided by the user.
 The input functions must accept only time as argument and their outputs must be as follows: 
 
 - `fun`: return a Direction Cosine Matrix (DCM).
-- `δfun`: return the DCM and its 1st order time derivative.
-- `δ²fun`: return the DCM and its 1st and 2nd order time derivatives.
-- `δ³fun`: return the DCM and its 1st, 2nd and 3rd order time derivatives.
+- `first_derivative`: return the DCM and its first time derivative.
+- `second_derivative`: return the DCM and its first two time derivatives.
+- `third_derivative`: return the DCM and its first three time derivatives.
 
-If `δfun`, `δ²fun` or `δ³fun` are not provided, they are computed via automatic differentiation.
+Missing derivative functions are computed via automatic differentiation.
 
 !!! warning 
     It is expected that the input functions and their outputs have the correct signature. This 
@@ -136,12 +136,14 @@ If `δfun`, `δ²fun` or `δ³fun` are not provided, they are computed via autom
 """
 function add_axes_rotating!(
     frames::FrameSystem{O,T}, name::Symbol, id::Int, parent, fun,
-    δfun=nothing, δ²fun=nothing, δ³fun=nothing,
+    first_derivative=nothing, second_derivative=nothing, third_derivative=nothing,
 ) where {O,T}
 
-    for (order, fcn) in enumerate((δfun, δ²fun, δ³fun))
-        if (O < order + 1 && !isnothing(fcn))
-            @warn "ignoring $fcn, frame system order is less than $(order+1)"
+    for (derivative_order, function_object) in enumerate(
+        (first_derivative, second_derivative, third_derivative)
+    )
+        if O < derivative_order + 1 && !isnothing(function_object)
+            @warn "ignoring $function_object, frame system order is less than $(derivative_order + 1)"
         end
     end
 
@@ -149,42 +151,56 @@ function add_axes_rotating!(
         t -> Rotation{O}(fun(t)),
 
         # First derivative 
-        if isnothing(δfun)
-            t -> Rotation{O}(fun(t), D¹(fun, t))
+        if isnothing(first_derivative)
+            t -> Rotation{O}(fun(t), derivative1(fun, t))
         else
-            t -> Rotation{O}(δfun(t))
+            t -> Rotation{O}(first_derivative(t))
         end,
 
         # Second derivative 
-        if isnothing(δ²fun)
+        if isnothing(second_derivative)
             (
-                if isnothing(δfun)
-                    t -> Rotation{O}(fun(t), D¹(fun, t), D²(fun, t))
+                if isnothing(first_derivative)
+                    t -> Rotation{O}(
+                        fun(t), derivative1(fun, t), derivative2(fun, t)
+                    )
                 else
-                    t -> Rotation{O}(δfun(t)..., D²(fun, t))
+                    t -> Rotation{O}(
+                        first_derivative(t)..., derivative2(fun, t)
+                    )
                 end
             )
         else
-            t -> Rotation{O}(δ²fun(t))
+            t -> Rotation{O}(second_derivative(t))
         end,
 
         # Third derivative 
-        if isnothing(δ³fun)
+        if isnothing(third_derivative)
             (
-                if isnothing(δ²fun)
+                if isnothing(second_derivative)
                     (
-                        if isnothing(δfun)
-                            t -> Rotation{O}(fun(t), D¹(fun, t), D²(fun, t), D³(fun, t))
+                        if isnothing(first_derivative)
+                            t -> Rotation{O}(
+                                fun(t),
+                                derivative1(fun, t),
+                                derivative2(fun, t),
+                                derivative3(fun, t),
+                            )
                         else
-                            t -> Rotation{O}(δfun(t)..., D²(δfun, t)...)
+                            t -> Rotation{O}(
+                                first_derivative(t)...,
+                                derivative2(first_derivative, t)...,
+                            )
                         end
                     )
                 else
-                    t -> Rotation{O}(δ²fun(t)..., D³(fun, t))
+                    t -> Rotation{O}(
+                        second_derivative(t)..., derivative3(fun, t)
+                    )
                 end
             )
         else
-            t -> Rotation{O}(δ³fun(t))
+            t -> Rotation{O}(third_derivative(t))
         end,
     )
 
