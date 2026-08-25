@@ -107,11 +107,13 @@ using Test
     @testset "compile_rotation — order selection" begin
         cr1 = compile_rotation(fr, :ICRF, :A, Val(1))
         @test cr1 isa CompiledRotation{1}
+        @test cr1.fun(t) isa Rotation{1}
         R1 = cr1(t)
         @test R1[1] ≈ rotation3(fr, 1, 2, t)[1]
 
         cr2 = compile_rotation(fr, :ICRF, :A, Val(2))
         @test cr2 isa CompiledRotation{2}
+        @test cr2.fun(t) isa Rotation{2}
         R2 = cr2(t)
         R2_core = rotation6(fr, 1, 2, t)
         @test R2[1] ≈ R2_core[1]
@@ -270,6 +272,38 @@ using Test
         J = ForwardDiff.derivative(dir_pos, t)
         d = cd(t)
         @test J ≈ d[SVector(4,5,6)] atol=1e-10
+    end
+
+    # --------------------------------------------------------------------------
+    # Compact compiled callables erase route structure from their public type
+    # --------------------------------------------------------------------------
+    @testset "compact compiled callables" begin
+        compact_rotation_a = compile_rotation(
+            fr, :ICRF, :A, Val(1); specialize=false)
+        compact_rotation_c = compile_rotation(
+            fr, :ICRF, :C, Val(1); specialize=false)
+        @test typeof(compact_rotation_a) === typeof(compact_rotation_c)
+        @test compact_rotation_a(t)[1] ≈ rotation3(fr, 1, 2, t)[1]
+        @test compact_rotation_c(t)[1] ≈ rotation3(fr, 1, 4, t)[1]
+
+        compact_translation_1 = compile_translation(
+            fr, :Origin, :P1, :ICRF, Val(1); specialize=false)
+        compact_translation_2 = compile_translation(
+            fr, :Origin, :P2, :ICRF, Val(1); specialize=false)
+        @test typeof(compact_translation_1) === typeof(compact_translation_2)
+        @test compact_translation_1(t) ≈ vector3(fr, 1, 2, 1, t)
+        @test compact_translation_2(t) ≈ vector3(fr, 1, 3, 1, t)
+
+        compact_direction = compile_direction(
+            fr, :sun, :ICRF, Val(1); specialize=false)
+        @test compact_direction(t) ≈ direction3(fr, :sun, 1, t)
+
+        compact_translation_ad = compile_translation(
+            fr, :Origin, :P1, :ICRF, Val(2); specialize=false)
+        compact_position(time) = compact_translation_ad(time)[SVector(1,2,3)]
+        compact_jacobian = ForwardDiff.derivative(compact_position, t)
+        @test compact_jacobian ≈
+            compact_translation_ad(t)[SVector(4,5,6)] atol=1e-10
     end
 
 end

@@ -84,8 +84,8 @@ const PointsGraph{O,T} = MappedNodeGraph{FramePointNode{O,T},SimpleGraph{Int}}
 # ------
 # Functions
 
-struct FrameAxesFunctions{O,T,FW<:FrameFunWrapper,RF<:Tuple}
-    fun::NTuple{O,FW}
+struct FrameAxesFunctions{O,T,FW<:Tuple,RF<:Tuple}
+    fun::FW
     raw::RF
 end
 
@@ -97,8 +97,25 @@ Base.getindex(pf::FrameAxesFunctions, i) = pf.fun[i]
 function _frame_axes_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
     wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
     return FrameAxesFunctions{
-        O,T,eltype(typeof(wrappers)),typeof(funs)
+        O,T,typeof(wrappers),typeof(funs)
     }(wrappers, funs)
+end
+
+@inline function _order_frame_axes_function(::Val{N}, fun) where {N}
+    return t -> Rotation{N}(fun(t))
+end
+
+function _ordered_frame_axes_functions(
+        ::Val{O}, ::Type{T}, funs::Tuple
+    ) where {O,T}
+    O > length(funs) && throw(ArgumentError("required at least $O functions."))
+    raw = ntuple(
+        i -> _order_frame_axes_function(Val(i), funs[i]), Val(O))
+    wrappers = ntuple(
+        i -> _frame_axes_fun_wrapper(Val(i), T, raw[i]), Val(O))
+    return FrameAxesFunctions{
+        O,T,typeof(wrappers),typeof(raw)
+    }(wrappers, raw)
 end
 
 function FrameAxesFunctions{T}(funs::Vararg{Any,O}) where {T,O}
@@ -115,7 +132,9 @@ function FrameAxesFunctions{O,T}(fun) where {O,T}
 end
 
 function FrameAxesFunctions{O,T}() where {O,T}
-    return FrameAxesFunctions{O,T}(t -> Rotation{O,T}(one(T)I))
+    identity_rotation = t -> one(T) * I
+    return _ordered_frame_axes_functions(
+        Val(O), T, ntuple(_ -> identity_rotation, Val(O)))
 end
 
 # ------

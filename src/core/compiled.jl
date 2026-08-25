@@ -63,7 +63,7 @@ function CompiledTranslation{O}(fun::F) where {O,F}
 end
 
 @inline function (ct::CompiledTranslation{O})(t::Number) where {O}
-    return ct.fun(t)
+    return SVector(ct.fun(t))
 end
 
 # ------------------------------------------------------------------------------------------
@@ -91,16 +91,54 @@ function CompiledDirection{O}(fun::F) where {O,F}
 end
 
 @inline function (cd::CompiledDirection{O})(t::Number) where {O}
-    return cd.fun(t)
+    return SVector(cd.fun(t))
 end
+
+# FunctionWrappersWrapper erases the route closure while retaining a concrete,
+# AD-capable call signature. This keeps downstream model types independent of
+# graph depth and route composition, avoiding large solver/compiler
+# specializations without changing the fully specialized default fast path.
+function _compact_compiled_rotation(
+        rotation::CompiledRotation{O}, ::Type{T}
+    ) where {O,T}
+    wrapper = _frame_axes_fun_wrapper(Val(O), T, rotation)
+    return CompiledRotation{O,false}(wrapper)
+end
+
+function _compact_compiled_translation(
+        translation::CompiledTranslation{O}, ::Type{T}
+    ) where {O,T}
+    wrapper = _frame_point_fun_wrapper(
+        Val(O), T, time -> Translation{O}(translation(time)))
+    return CompiledTranslation{O}(wrapper)
+end
+
+function _compact_compiled_direction(
+        direction::CompiledDirection{O}, ::Type{T}
+    ) where {O,T}
+    wrapper = _frame_point_fun_wrapper(
+        Val(O), T, time -> Translation{O}(direction(time)))
+    return CompiledDirection{O}(wrapper)
+end
+
+_compiled_specialization(callable, ::Type, ::Val{true}) = callable
+_compiled_specialization(
+    callable::CompiledRotation, type::Type, ::Val{false}) =
+    _compact_compiled_rotation(callable, type)
+_compiled_specialization(
+    callable::CompiledTranslation, type::Type, ::Val{false}) =
+    _compact_compiled_translation(callable, type)
+_compiled_specialization(
+    callable::CompiledDirection, type::Type, ::Val{false}) =
+    _compact_compiled_direction(callable, type)
 
 # ------------------------------------------------------------------------------------------
 # compile_rotation
 # ------------------------------------------------------------------------------------------
 
 """
-    compile_rotation(fr::FrameSystem, from, to)
-    compile_rotation(fr::FrameSystem, from, to, ::Val{N})
+    compile_rotation(fr::FrameSystem, from, to; specialize=true)
+    compile_rotation(fr::FrameSystem, from, to, ::Val{N}; specialize=true)
 
 Compile a zero-overhead rotation callable between axes `from` and `to`. The returned
 [`CompiledRotation`](@ref) bypasses `FunctionWrapper` dispatch entirely by extracting
@@ -109,6 +147,11 @@ the raw closure and preserving its concrete type.
 By default the compiled callable uses the frame system's maximum order `O`. Pass
 `Val{N}()` where `N ≤ O` to extract only the `N`-th order closure, avoiding unnecessary
 derivative computation in the hot path.
+
+Set `specialize=false` to place the concrete route behind a compact,
+AD-capable callable boundary. Compact callables for the same order and scalar
+type share one public type regardless of route depth, reducing downstream
+compilation at the cost of a small function-wrapper call overhead.
 
 Supports both direct parent-child pairs and multi-hop paths. For multi-hop paths,
 the construction loop is type-unstable (closures are composed via `let`), but the
@@ -119,11 +162,15 @@ resulting callable is fully typed — so `cr(t)` in a hot loop is zero-overhead.
     If axes are added after compilation, the callable becomes stale and must be
     recompiled.
 """
-function compile_rotation(fr::FrameSystem{O,T}, from, to) where {O,T}
-    return compile_rotation(fr, from, to, Val(O))
+function compile_rotation(
+        fr::FrameSystem{O,T}, from, to; specialize::Bool=true
+    ) where {O,T}
+    return compile_rotation(fr, from, to, Val(O); specialize)
 end
 
-function compile_rotation(fr::FrameSystem{O,T}, from, to, ::Val{N}) where {O,T,N}
+function compile_rotation(
+        fr::FrameSystem{O,T}, from, to, ::Val{N}; specialize::Bool=true
+    ) where {O,T,N}
     N > O && throw(
         ArgumentError("requested order $N exceeds frame system order $O.")
     )
@@ -131,14 +178,18 @@ function compile_rotation(fr::FrameSystem{O,T}, from, to, ::Val{N}) where {O,T,N
     fromid = axes_id(fr, from)
     toid = axes_id(fr, to)
 
-    fromid == toid && return CompiledRotation{N,false}(_ -> one(T) * I)
+    if fromid == toid
+        rotation = CompiledRotation{N,false}(_ -> one(T) * I)
+        return _compiled_specialization(rotation, T, Val(specialize))
+    end
 
     nodes = _get_axes_nodes(fr, fromid, toid)
     isnothing(nodes) && throw(
         ErrorException("no path between axes $fromid and $toid in the frame system.")
     )
 
-    return _compile_rotation(Val(N), nodes)
+    rotation = _compile_rotation(Val(N), nodes)
+    return _compiled_specialization(rotation, T, Val(specialize))
 end
 
 function _compile_rotation_pair(::Val{N}, from::FrameAxesNode, to::FrameAxesNode) where {N}
@@ -169,8 +220,8 @@ end
 # ------------------------------------------------------------------------------------------
 
 """
-    compile_translation(fr::FrameSystem, from, to, axes)
-    compile_translation(fr::FrameSystem, from, to, axes, ::Val{N})
+    compile_translation(fr::FrameSystem, from, to, axes; specialize=true)
+    compile_translation(fr::FrameSystem, from, to, axes, ::Val{N}; specialize=true)
 
 Compile a zero-overhead translation callable between points `from` and `to`, expressed in
 the given `axes` frame. The returned [`CompiledTranslation`](@ref) bypasses `FunctionWrapper`
@@ -179,16 +230,24 @@ dispatch for both the point functions and any axis rotations needed along the pa
 By default the compiled callable uses the frame system's maximum order `O`. Pass
 `Val{N}()` where `N ≤ O` to extract only the `N`-th order closure.
 
+Set `specialize=false` to erase the concrete route from the returned callable's
+type. This is useful when many distinct translations are embedded in a larger
+model and first-call compilation matters more than the small wrapper overhead.
+
 !!! warning
     The compiled callable captures a snapshot of the current frame graph topology.
     If points or axes are added after compilation, the callable becomes stale and
     must be recompiled.
 """
-function compile_translation(fr::FrameSystem{O,T}, from, to, axes) where {O,T}
-    return compile_translation(fr, from, to, axes, Val(O))
+function compile_translation(
+        fr::FrameSystem{O,T}, from, to, axes; specialize::Bool=true
+    ) where {O,T}
+    return compile_translation(fr, from, to, axes, Val(O); specialize)
 end
 
-function compile_translation(fr::FrameSystem{O,T}, from, to, axes, ::Val{N}) where {O,T,N}
+function compile_translation(
+        fr::FrameSystem{O,T}, from, to, axes, ::Val{N}; specialize::Bool=true
+    ) where {O,T,N}
     N > O && throw(
         ArgumentError("requested order $N exceeds frame system order $O.")
     )
@@ -198,7 +257,8 @@ function compile_translation(fr::FrameSystem{O,T}, from, to, axes, ::Val{N}) whe
     axid = axes_id(fr, axes)
 
     if fromid == toid
-        return CompiledTranslation{N}(_ -> @SVector zeros(T, 3 * N))
+        translation = CompiledTranslation{N}(_ -> @SVector zeros(T, 3 * N))
+        return _compiled_specialization(translation, T, Val(specialize))
     end
 
     nodes = _get_points_nodes(fr, fromid, toid)
@@ -206,7 +266,8 @@ function compile_translation(fr::FrameSystem{O,T}, from, to, axes, ::Val{N}) whe
         ErrorException("no path between points $fromid and $toid in the frame system.")
     )
 
-    return _compile_translation(Val(N), fr, nodes, axid)
+    translation = _compile_translation(Val(N), fr, nodes, axid)
+    return _compiled_specialization(translation, T, Val(specialize))
 end
 
 function _compile_point_pair(::Val{N}, from::FramePointNode, to::FramePointNode) where {N}
@@ -309,8 +370,8 @@ end
 # ------------------------------------------------------------------------------------------
 
 """
-    compile_direction(fr::FrameSystem, name::Symbol, axes)
-    compile_direction(fr::FrameSystem, name::Symbol, axes, ::Val{N})
+    compile_direction(fr::FrameSystem, name::Symbol, axes; specialize=true)
+    compile_direction(fr::FrameSystem, name::Symbol, axes, ::Val{N}; specialize=true)
 
 Compile a zero-overhead direction callable for the direction `name`, expressed in the
 given `axes` frame. The returned [`CompiledDirection`](@ref) bypasses `FunctionWrapper`
@@ -319,16 +380,23 @@ dispatch.
 By default the compiled callable uses the frame system's maximum order `O`. Pass
 `Val{N}()` where `N ≤ O` to extract only the `N`-th order closure.
 
+Set `specialize=false` to erase the concrete direction and rotation route from
+the returned callable's type.
+
 !!! warning
     The compiled callable captures a snapshot of the current frame graph topology.
     If axes are added after compilation, the callable becomes stale and must be
     recompiled.
 """
-function compile_direction(fr::FrameSystem{O}, name::Symbol, axes) where {O}
-    return compile_direction(fr, name, axes, Val(O))
+function compile_direction(
+        fr::FrameSystem{O,T}, name::Symbol, axes; specialize::Bool=true
+    ) where {O,T}
+    return compile_direction(fr, name, axes, Val(O); specialize)
 end
 
-function compile_direction(fr::FrameSystem{O}, name::Symbol, axes, ::Val{N}) where {O,N}
+function compile_direction(
+        fr::FrameSystem{O,T}, name::Symbol, axes, ::Val{N}; specialize::Bool=true
+    ) where {O,T,N}
     N > O && throw(
         ArgumentError("requested order $N exceeds frame system order $O.")
     )
@@ -346,17 +414,19 @@ function compile_direction(fr::FrameSystem{O}, name::Symbol, axes, ::Val{N}) whe
 
     if thisaxid != axid
         cr = compile_rotation(fr, thisaxid, axid, Val(N))
-        return CompiledDirection{N}(let _fn = raw_fn, _cr = cr
+        direction = CompiledDirection{N}(let _fn = raw_fn, _cr = cr
             function (t)
                 stv = Translation{N}(_fn(t))
                 return SVector(_cr(t) * stv)
             end
         end)
+        return _compiled_specialization(direction, T, Val(specialize))
     else
-        return CompiledDirection{N}(let _fn = raw_fn
+        direction = CompiledDirection{N}(let _fn = raw_fn
             function (t)
                 return SVector(Translation{N}(_fn(t)))
             end
         end)
+        return _compiled_specialization(direction, T, Val(specialize))
     end
 end

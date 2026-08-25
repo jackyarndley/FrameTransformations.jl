@@ -90,7 +90,9 @@ function add_axes_fixedoffset!(
     frames::FrameSystem{O,T}, name::Symbol, id::Int, parent, dcm::DCM{T}
 ) where {O,T}
 
-    funs = FrameAxesFunctions{O,T}(t -> Rotation{O}(dcm))
+    rotation = t -> dcm
+    funs = _ordered_frame_axes_functions(
+        Val(O), T, ntuple(_ -> rotation, Val(O)))
     add_axes!(frames, name, id, funs, axes_id(frames, parent))
 end
 
@@ -110,7 +112,8 @@ See also [`add_axes!`](@ref).
 function add_axes_projected!(
     frames::FrameSystem{O,T}, name::Symbol, id::Int, parent, fun
 ) where {O,T}
-    funs = FrameAxesFunctions{O,T}(t -> Rotation{O}(fun(t)))
+    funs = _ordered_frame_axes_functions(
+        Val(O), T, ntuple(_ -> fun, Val(O)))
     add_axes!(frames, name, id, funs, axes_id(frames, parent))
 end
 
@@ -147,31 +150,31 @@ function add_axes_rotating!(
         end
     end
 
-    funs = FrameAxesFunctions{O,T}(
-        t -> Rotation{O}(fun(t)),
+    functions = (
+        t -> Rotation{1}(fun(t)),
 
         # First derivative 
         if isnothing(first_derivative)
-            t -> Rotation{O}(fun(t), derivative1(fun, t))
+            t -> Rotation{2}(fun(t), derivative1(fun, t))
         else
-            t -> Rotation{O}(first_derivative(t))
+            t -> Rotation{2}(first_derivative(t))
         end,
 
         # Second derivative 
         if isnothing(second_derivative)
             (
                 if isnothing(first_derivative)
-                    t -> Rotation{O}(
+                    t -> Rotation{3}(
                         fun(t), derivative1(fun, t), derivative2(fun, t)
                     )
                 else
-                    t -> Rotation{O}(
+                    t -> Rotation{3}(
                         first_derivative(t)..., derivative2(fun, t)
                     )
                 end
             )
         else
-            t -> Rotation{O}(second_derivative(t))
+            t -> Rotation{3}(second_derivative(t))
         end,
 
         # Third derivative 
@@ -180,29 +183,31 @@ function add_axes_rotating!(
                 if isnothing(second_derivative)
                     (
                         if isnothing(first_derivative)
-                            t -> Rotation{O}(
+                            t -> Rotation{4}(
                                 fun(t),
                                 derivative1(fun, t),
                                 derivative2(fun, t),
                                 derivative3(fun, t),
                             )
                         else
-                            t -> Rotation{O}(
+                            t -> Rotation{4}(
                                 first_derivative(t)...,
                                 derivative2(first_derivative, t)...,
                             )
                         end
                     )
                 else
-                    t -> Rotation{O}(
+                    t -> Rotation{4}(
                         second_derivative(t)..., derivative3(fun, t)
                     )
                 end
             )
         else
-            t -> Rotation{O}(third_derivative(t))
+            t -> Rotation{4}(third_derivative(t))
         end,
     )
+
+    funs = _ordered_frame_axes_functions(Val(O), T, functions)
 
     return add_axes!(frames, name, id, funs, axes_id(frames, parent))
 end

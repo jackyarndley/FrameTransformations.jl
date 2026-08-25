@@ -55,6 +55,24 @@ Run the derivative-specific backend and pullback suite with:
 julia benchmark/runadbenchmarks.jl
 ```
 
+To run the SPICE position/state workloads used by
+[Brahe PR #376](https://github.com/duncaneddy/brahe/pull/376), use:
+
+```julia
+julia benchmark/runspicebenchmarks.jl
+```
+
+This compares prepared `Ephemerides.jl` chains with direct and compiled
+`FrameTransformations.jl` paths for single Sun/Moon/Mars-barycenter queries, a
+10,000-epoch sequential propagation pattern, and a Sun + Moon third-body acceleration
+adapter. Kernel loading, route preparation, frame-graph construction, and transformation
+compilation are excluded from the measurements. The bundled DE432s test kernel is used by
+default; set `SPICE_KERNEL` to a DE440s BSP file for the exact kernel used by Brahe:
+
+```bash
+SPICE_KERNEL=/path/to/de440s.bsp julia benchmark/runspicebenchmarks.jl
+```
+
 The benchmark script uses `BenchmarkTools.jl` and compares direct versus compiled paths
 for synthetic multi-hop examples and the DE440 lunar-frame rotation case at frame-system
 orders 2, 3, and 4. The DE440 suite includes both rotation and Earth-to-Moon vector
