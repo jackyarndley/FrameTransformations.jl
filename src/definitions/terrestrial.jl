@@ -1,4 +1,12 @@
 
+function _require_celestial_parent(parentid::Int, name)
+    parentid in (AXESID_ICRF, AXESID_GCRF) && return nothing
+    throw(ArgumentError(
+        "$name axes require ICRF (ID $AXESID_ICRF) or GCRF (ID $AXESID_GCRF) " *
+        "as their parent; received ID $parentid.",
+    ))
+end
+
 """
     add_axes_itrf!(fr::FrameSystem, name::Symbol, parentid::Int=AXESID_ICRF, id::Int=AXESID_ITRF,
         model::IERSModel=iers2010b) 
@@ -15,15 +23,7 @@ function add_axes_itrf!(
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "International Terrestrial Reference Frame (ITRF) axes cannot be defined" *
-                "with respect to axes $parentid. Only the `ICRF` (ID = $(AXESID_ICRF)) " *
-                "or the `GCRF` (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "ITRF")
 
     return add_axes_rotating!(
         fr, name, id, parentid,
@@ -62,15 +62,7 @@ function add_axes_mod!(fr::FrameSystem, name::Symbol, id::Int, parentid::Int=AXE
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "Mean-of-Date (MOD) axes cannot be defined with respect to axes $parentid." *
-                " Only the ICRF (ID = $(AXESID_ICRF)) or the GCRF" *
-                " (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "Mean-of-Date (MOD)")
 
     return add_axes_projected!(
         fr, name, id, parentid, t -> iers_rot3_gcrf_to_mod(t, model)
@@ -101,15 +93,7 @@ function add_axes_tod!(fr::FrameSystem, name::Symbol, id::Int, parentid::Int=AXE
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "True-of-Date (TOD) axes cannot be defined with respect to axes $parentid." *
-                " Only the ICRF (ID = $(AXESID_ICRF)) or the GCRF" *
-                " (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "True-of-Date (TOD)")
 
     return add_axes_projected!(
         fr, name, id, parentid, t -> iers_rot3_gcrf_to_tod(t, model)
@@ -136,15 +120,7 @@ function add_axes_gtod!(
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "Greenwich True-of-Date (GTOD) axes cannot be defined with respect to axes" *
-                " $parentid. Only the ICRF (ID = $(AXESID_ICRF)) or the GCRF" *
-                " (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "Greenwich True-of-Date (GTOD)")
 
     # TODO: check if inertial is right
     return add_axes_projected!(
@@ -168,17 +144,9 @@ function add_axes_pef!(
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "Pseudo-Earth Fixed (PEF) axes cannot be defined with respect to" *
-                " axes $parentid. Only the ICRF (ID = $(AXESID_ICRF)) or the GCRF" *
-                " (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "Pseudo-Earth Fixed (PEF)")
 
-    # TODO: PEF axes use AD for higher-order derivatives
+    # PEF higher orders are generated through DifferentiationInterface.
     return add_axes_rotating!(
         fr, name, id, parentid, t -> iers_rot3_gcrf_to_pef(model, t)
     )
@@ -207,15 +175,7 @@ function add_axes_cirf!(fr::FrameSystem, name::Symbol, id::Int, parentid::Int=AX
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "The Celestial Intermediate Reference Frame (CIRF) axes cannot be defined" *
-                " with respect to axes $parentid. Only the ICRF (ID = $(AXESID_ICRF)) or" *
-                " the GCRF (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "Celestial Intermediate Reference Frame (CIRF)")
 
     # TODO: check if inertial is right
     return add_axes_projected!(
@@ -242,15 +202,7 @@ function add_axes_tirf!(fr::FrameSystem, name::Symbol, id::Int, parentid::Int=AX
     model::IERSModel=iers2010b
 )
 
-    if !(parentid in (AXESID_ICRF, AXESID_GCRF))
-        throw(
-            ArgumentError(
-                "The Terrestrial Intermediate Reference Frame (TIRF) axes cannot be defined" *
-                " with respect to axes $parentid. Only the ICRF (ID = $(AXESID_ICRF)) or" *
-                " the GCRF (ID = $(AXESID_GCRF)) are accepted as parent axes.",
-            ),
-        )
-    end
+    _require_celestial_parent(parentid, "Terrestrial Intermediate Reference Frame (TIRF)")
 
     # TODO: check if inertial is right
     return add_axes_projected!(

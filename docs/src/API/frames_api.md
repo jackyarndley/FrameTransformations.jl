@@ -86,8 +86,8 @@ the frame system's maximum order. Pass `Val(N)` to store only order `N`.
 
 Rotation callables return `Rotation{N}`. Translation and direction callables return
 `SVector{3N}`. Scalar types promote with generic numerical times, including ForwardDiff duals.
-Forward-mode differentiation is supported for every callable, and the ChainRulesCore and
-Mooncake extensions provide reverse-mode rules.
+Differentiate direct, prepared, and compiled callables through DifferentiationInterface with
+an `AutoForwardDiff()` backend.
 
 ### Types
 

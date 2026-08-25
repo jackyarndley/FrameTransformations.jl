@@ -37,6 +37,12 @@ add_axes_mod!
 add_axes_tod!
 add_axes_gtod!
 add_axes_pef!
+add_axes_teme!
+
+teme_rot3_gcrf_to_teme
+teme_rot6_gcrf_to_teme
+teme_rot9_gcrf_to_teme
+teme_rot12_gcrf_to_teme
 ```
 
 ## Planetary
@@ -83,6 +89,7 @@ FrameTransformations.AXESID_MOONPA_DE440
 FrameTransformations.AXESID_ECL2000
 FrameTransformations.AXESID_EME2000
 FrameTransformations.AXESID_GCRF
+FrameTransformations.AXESID_TEME
 ```
 
 ### [Rotation Matrices](@id frames_dcms)

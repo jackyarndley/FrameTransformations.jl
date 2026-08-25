@@ -18,9 +18,8 @@ extensible axes/point graph models for mission analysis and space mission design
 
 Automatic differentiation is tested through
 [DifferentiationInterface.jl](https://github.com/JuliaDiff/DifferentiationInterface.jl)
-with ForwardDiff, FiniteDiff, Zygote, and Mooncake backends. Analytic ChainRules rules use
-the next available state derivative for direct graph operations. Prepared and compiled
-callable rules differentiate their resolved route without traversing the graph.
+with its ForwardDiff backend. Direct, prepared, and compiled callables preserve dual-number
+times and differentiate through their resolved numerical operations.
 
 ## Installation 
 

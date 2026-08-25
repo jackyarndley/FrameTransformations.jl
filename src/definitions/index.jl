@@ -18,6 +18,14 @@ Axes ID for the Geocentric Celestial Reference Frame (GCRFF)
 """
 const AXESID_GCRF = 23
 
+"""
+    AXESID_TEME
+
+Axes ID for the True Equator, Mean Equinox (TEME) frame. ID 24 is drawn from the
+unassigned built-in SPICE frame IDs, following [`AXESID_GCRF`](@ref).
+"""
+const AXESID_TEME = 24
+
 """ 
     AXESID_ECL2000 
    

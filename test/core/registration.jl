@@ -1,8 +1,11 @@
 using FrameTransformations
-using ForwardDiff
+using DifferentiationInterface: AutoForwardDiff, derivative
+import ForwardDiff
 using ReferenceFrameRotations
 using StaticArrays
 using Test
+
+const backend = AutoForwardDiff()
 
 @testset "Cumulative derivative registration" begin
     @testset "position-only operations do not touch higher providers" begin
@@ -61,7 +64,7 @@ using Test
             rotation6_calls[] += 1
             Rotation(
                 rotation3_function(t),
-                ForwardDiff.derivative(rotation3_function, t),
+                derivative(rotation3_function, backend, t),
             )
         end
         add_axes_rotating!(
@@ -103,8 +106,8 @@ using Test
         direction = direction9(frames, :D, :I, time)
 
         @test rotation6_calls[] > 0
-        @test rotation[3] ≈ ForwardDiff.derivative(
-            epoch -> rotation6_function(epoch)[2], time)
+        @test rotation[3] ≈ derivative(
+            epoch -> rotation6_function(epoch)[2], backend, time)
         @test position_calls[] == 0
         @test state6_calls[] > 0
         @test state[7:9] ≈ SVector(0.0, 2.0, 6time)

@@ -25,9 +25,8 @@ extensible axes/point graph models for mission analysis and space mission design
 
 Automatic differentiation is tested through
 [DifferentiationInterface.jl](https://github.com/JuliaDiff/DifferentiationInterface.jl)
-with ForwardDiff, FiniteDiff, Zygote, and Mooncake backends. Analytic ChainRules rules use
-the next available state derivative for direct graph operations. Prepared and compiled
-callables differentiate through their already-resolved routes.
+with its ForwardDiff backend. Direct, prepared, and compiled callables preserve dual-number
+times and differentiate through their resolved numerical operations.
 
 ## Transformation modes
 
@@ -65,12 +64,6 @@ Run the benchmark suite from the repository root with:
 julia benchmark/runbenchmarks.jl
 ```
 
-Run the derivative-specific backend and pullback suite with:
-
-```julia
-julia benchmark/runadbenchmarks.jl
-```
-
 Measure package load, frame construction, route preparation/compilation, first evaluation,
 and first composite-model use in a clean Julia process with:
 
@@ -99,8 +92,7 @@ SPICE_KERNEL=/path/to/de440s.bsp julia benchmark/runspicebenchmarks.jl
 The benchmark script uses `BenchmarkTools.jl` and compares direct, prepared, and compiled paths
 for synthetic multi-hop examples and the DE440 lunar-frame rotation case at frame-system
 orders 2, 3, and 4. The DE440 suite includes both rotation and Earth-to-Moon vector
-benchmarks expressed in the lunar ME421 frame. The derivative suite compares analytic
-states, DifferentiationInterface backends, compiled callables, and ChainRules pullbacks.
+benchmarks expressed in the lunar ME421 frame, plus DifferentiationInterface evaluations.
 The benchmark and test environments are tracked as Julia workspace projects from the root
 `Project.toml` on Julia 1.12+, with the legacy path-based setup retained for older Julia
 releases.

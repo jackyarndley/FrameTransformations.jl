@@ -328,31 +328,25 @@ function _compile_point_pair(::Val{N}, from::FramePointNode, to::FramePointNode)
     end
 end
 
+function _compile_translation_hop(::Val{N}, function_object, inverse) where {N}
+    inverse && return t -> -Translation{N}(function_object(t))
+    return t -> Translation{N}(function_object(t))
+end
+
 function _compile_translation(::Val{N}, fr::FrameSystem, nodes::Vector{<:FramePointNode}, axes::Int) where {N}
     if length(nodes) == 2
         axid, raw_fn, inv_flag = _compile_point_pair(Val(N), nodes[1], nodes[2])
-        if axid != axes
-            cr = compile_rotation(fr, axid, axes, Val(N))
-            if inv_flag
-                return CompiledTranslation{N}(let _fn = raw_fn, _cr = cr
-                    t -> SVector(_cr(t) * (-Translation{N}(_fn(t))))
-                end)
-            else
-                return CompiledTranslation{N}(let _fn = raw_fn, _cr = cr
-                    t -> SVector(_cr(t) * Translation{N}(_fn(t)))
-                end)
-            end
-        else
-            if inv_flag
-                return CompiledTranslation{N}(let _fn = raw_fn
-                    t -> SVector(-Translation{N}(_fn(t)))
-                end)
-            else
-                return CompiledTranslation{N}(let _fn = raw_fn
-                    t -> SVector(Translation{N}(_fn(t)))
-                end)
-            end
+        hop = _compile_translation_hop(Val(N), raw_fn, inv_flag)
+        if axid == axes
+            return CompiledTranslation{N}(let _hop = hop
+                t -> SVector(_hop(t))
+            end)
         end
+
+        rotation = compile_rotation(fr, axid, axes, Val(N))
+        return CompiledTranslation{N}(let _hop = hop, _rotation = rotation
+            t -> SVector(_rotation(t) * _hop(t))
+        end)
     end
 
     return _compile_translation_forward(Val(N), fr, nodes, axes)
@@ -360,36 +354,32 @@ end
 
 function _compile_translation_forward(::Val{N}, fr::FrameSystem, nodes::Vector{<:FramePointNode}, out_axes::Int) where {N}
     axid1, raw1, inv1 = _compile_point_pair(Val(N), nodes[1], nodes[2])
+    first_hop = _compile_translation_hop(Val(N), raw1, inv1)
 
-    compiled_fun = let _fn = raw1, _inv = inv1
-        if _inv
-            t -> (axid1, -Translation{N}(_fn(t)))
-        else
-            t -> (axid1, Translation{N}(_fn(t)))
-        end
+    compiled_fun = let _hop = first_hop, _axid = axid1
+        t -> (_axid, _hop(t))
     end
 
     prev_axid = axid1
 
     for i in 3:length(nodes)
         axid_i, raw_i, inv_i = _compile_point_pair(Val(N), nodes[i-1], nodes[i])
+        hop_i = _compile_translation_hop(Val(N), raw_i, inv_i)
 
         if axid_i != prev_axid
             cr = compile_rotation(fr, prev_axid, axid_i, Val(N))
-            compiled_fun = let _prev = compiled_fun, _fn = raw_i, _inv = inv_i, _cr = cr, _axid = axid_i
+            compiled_fun = let _prev = compiled_fun, _hop = hop_i, _cr = cr, _axid = axid_i
                 function (t)
                     _, tr = _prev(t)
                     tr_rotated = _cr(t) * tr
-                    tr_hop = _inv ? -Translation{N}(_fn(t)) : Translation{N}(_fn(t))
-                    return (_axid, tr_rotated + tr_hop)
+                    return (_axid, tr_rotated + _hop(t))
                 end
             end
         else
-            compiled_fun = let _prev = compiled_fun, _fn = raw_i, _inv = inv_i, _axid = axid_i
+            compiled_fun = let _prev = compiled_fun, _hop = hop_i, _axid = axid_i
                 function (t)
                     _, tr = _prev(t)
-                    tr_hop = _inv ? -Translation{N}(_fn(t)) : Translation{N}(_fn(t))
-                    return (_axid, tr + tr_hop)
+                    return (_axid, tr + _hop(t))
                 end
             end
         end

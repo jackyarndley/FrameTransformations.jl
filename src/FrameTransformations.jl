@@ -4,6 +4,8 @@ using LinearAlgebra
 using StaticArrays
 using ReferenceFrameRotations
 using FunctionWrappersWrappers: FunctionWrappersWrapper, AllowAll, NoCache
+import DifferentiationInterface as DI
+import ForwardDiff # Activates DifferentiationInterface's ForwardDiff extension.
 
 using JSMDUtils.Math:
     arcsec2rad,
@@ -12,20 +14,6 @@ using JSMDUtils.Math:
     cross6,
     cross9,
     cross12
-using JSMDUtils.Autodiff: derivative
-
-# ASCII derivative helpers.
-@inline derivative1(function_object, time) =
-    derivative(function_object, time)
-@inline derivative2(function_object, time) =
-    derivative(epoch -> derivative(function_object, epoch), time)
-@inline derivative3(function_object, time) = derivative(
-    outer_epoch -> derivative(
-        inner_epoch -> derivative(function_object, inner_epoch),
-        outer_epoch,
-    ),
-    time,
-)
 
 using JSMDInterfaces.Graph: AbstractJSMDGraphNode,
        add_edge!, add_vertex!, get_path, has_vertex
@@ -35,7 +23,9 @@ using SMDGraphs: MappedNodeGraph, SimpleGraph, MappedGraph,
 
 import SMDGraphs: get_node_id
 
-using Tempo: AbstractTimeScale, Epoch, j2000s, BarycentricDynamicalTime, CENTURY2SEC
+import Tempo
+using Tempo: AbstractTimeScale, Epoch, j2000s, BarycentricDynamicalTime,
+       TT, CENTURY2SEC
 
 using JSMDInterfaces.Ephemeris: AbstractEphemerisProvider,
        ephem_position_records, ephem_available_points,
@@ -45,7 +35,7 @@ using JSMDInterfaces.Interface: @interface
 
 using JSMDInterfaces.Bodies: body_rotational_elements
 
-using IERSConventions: iers_bias, iers_obliquity,
+using IERSConventions: iers_bias, iers_obliquity, equation_equinoxes, eop_δΔψ,
        iers_rot3_gcrf_to_itrf, iers_rot6_gcrf_to_itrf,
        iers_rot9_gcrf_to_itrf, iers_rot12_gcrf_to_itrf,
        iers_rot3_gcrf_to_mod, iers_rot3_gcrf_to_tod, iers_rot3_gcrf_to_gtod,
@@ -102,7 +92,7 @@ include("core/compiled.jl")
 # ==========================================================================================
 
 export AXESID_ICRF, AXESID_GCRF,
-       AXESID_ECL2000, AXESID_EME2000,
+       AXESID_ECL2000, AXESID_EME2000, AXESID_TEME,
        AXESID_MOONME_DE421, AXESID_MOONPA_DE421, AXESID_MOONPA_DE440
 
 include("definitions/index.jl")
@@ -124,6 +114,11 @@ export add_axes_itrf!, add_axes_cirf!, add_axes_tirf!,
        add_axes_mod!, add_axes_tod!, add_axes_gtod!, add_axes_pef!
 
 include("definitions/terrestrial.jl")
+
+export teme_rot3_gcrf_to_teme, teme_rot6_gcrf_to_teme,
+       teme_rot9_gcrf_to_teme, teme_rot12_gcrf_to_teme, add_axes_teme!
+
+include("definitions/teme.jl")
 
 export add_axes_bci2000!, add_axes_bcrtod!
 

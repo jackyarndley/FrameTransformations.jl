@@ -1,8 +1,11 @@
 using FrameTransformations
+using DifferentiationInterface: AutoForwardDiff, derivative
 using ReferenceFrameRotations
 using StaticArrays
-using ForwardDiff
+import ForwardDiff
 using Test
+
+const backend = AutoForwardDiff()
 
 @testset "Compiled fast-path" begin
 
@@ -294,50 +297,50 @@ using Test
     end
 
     # --------------------------------------------------------------------------
-    # ForwardDiff through compiled rotation
+    # DifferentiationInterface through compiled rotation
     # --------------------------------------------------------------------------
-    @testset "ForwardDiff — compiled rotation" begin
+    @testset "DifferentiationInterface — compiled rotation" begin
         cr = compile_rotation(fr, :ICRF, :A)
         dcm_at_t(t) = cr(t)[1]
-        J = ForwardDiff.derivative(dcm_at_t, t)
+        J = derivative(dcm_at_t, backend, t)
         R = cr(t)
         @test J ≈ R[2] atol=1e-10
     end
 
     # --------------------------------------------------------------------------
-    # ForwardDiff through compiled translation
+    # DifferentiationInterface through compiled translation
     # --------------------------------------------------------------------------
-    @testset "ForwardDiff — compiled translation" begin
+    @testset "DifferentiationInterface — compiled translation" begin
         ct = compile_translation(fr, :Origin, :P1, :ICRF)
         pos(t) = ct(t)[SVector(1,2,3)]
-        J = ForwardDiff.derivative(pos, t)
+        J = derivative(pos, backend, t)
         v = ct(t)
         @test J ≈ v[SVector(4,5,6)] atol=1e-10
     end
 
     # --------------------------------------------------------------------------
-    # ForwardDiff through compiled direction
+    # DifferentiationInterface through compiled direction
     # --------------------------------------------------------------------------
-    @testset "ForwardDiff — compiled direction" begin
+    @testset "DifferentiationInterface — compiled direction" begin
         cd = compile_direction(fr, :sun, :ICRF)
         dir_pos(t) = cd(t)[SVector(1,2,3)]
-        J = ForwardDiff.derivative(dir_pos, t)
+        J = derivative(dir_pos, backend, t)
         d = cd(t)
         @test J ≈ d[SVector(4,5,6)] atol=1e-10
     end
 
-    @testset "ForwardDiff — prepared routes" begin
+    @testset "DifferentiationInterface — prepared routes" begin
         prepared_rotation = prepare_rotation(fr, :C, :ICRF, Val(2))
         prepared_translation = prepare_translation(
             fr, :P2, :Origin, :A, Val(2))
         prepared_direction = prepare_direction(fr, :sun, :C, Val(2))
 
-        rotation_derivative = ForwardDiff.derivative(
-            time -> prepared_rotation(time)[1], t)
-        translation_derivative = ForwardDiff.derivative(
-            time -> prepared_translation(time)[SVector(1, 2, 3)], t)
-        direction_derivative = ForwardDiff.derivative(
-            time -> prepared_direction(time)[SVector(1, 2, 3)], t)
+        rotation_derivative = derivative(
+            time -> prepared_rotation(time)[1], backend, t)
+        translation_derivative = derivative(
+            time -> prepared_translation(time)[SVector(1, 2, 3)], backend, t)
+        direction_derivative = derivative(
+            time -> prepared_direction(time)[SVector(1, 2, 3)], backend, t)
 
         @test rotation_derivative ≈ prepared_rotation(t)[2] atol=1e-10
         @test translation_derivative ≈
@@ -348,10 +351,8 @@ using Test
         identity_rotation = prepare_rotation(fr, :ICRF, :ICRF, Val(1))
         identity_translation = prepare_translation(
             fr, :Origin, :Origin, :ICRF, Val(1))
-        @test ForwardDiff.derivative(
-            time -> identity_rotation(time)[1][1, 1], t) == 0
-        @test ForwardDiff.derivative(
-            time -> identity_translation(time)[1], t) == 0
+        @test derivative(time -> identity_rotation(time)[1][1, 1], backend, t) == 0
+        @test derivative(time -> identity_translation(time)[1], backend, t) == 0
     end
 
     # --------------------------------------------------------------------------
@@ -394,7 +395,7 @@ using Test
         compact_translation_ad = prepare_translation(
             fr, :Origin, :P1, :ICRF, Val(2))
         compact_position(time) = compact_translation_ad(time)[SVector(1,2,3)]
-        compact_jacobian = ForwardDiff.derivative(compact_position, t)
+        compact_jacobian = derivative(compact_position, backend, t)
         @test compact_jacobian ≈
             compact_translation_ad(t)[SVector(4,5,6)] atol=1e-10
     end

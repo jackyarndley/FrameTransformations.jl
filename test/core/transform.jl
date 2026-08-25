@@ -1,23 +1,26 @@
 using FrameTransformations
+using DifferentiationInterface: AutoForwardDiff, derivative, second_derivative
 using ReferenceFrameRotations
 using StaticArrays
-using ForwardDiff
+import ForwardDiff
 using Test
+
+const backend = AutoForwardDiff()
 
 @testset "FrameSystem" begin 
     fr = FrameSystem{4, Float64}()
     add_axes!(fr, :ICRF, 1)
 
     r(t) = angle_to_dcm(t, :Z)
-    dr(t) = ForwardDiff.derivative(r, t)
-    d2r(t) = ForwardDiff.derivative(dr, t)
-    d3r(t) = ForwardDiff.derivative(d2r, t)
+    dr(t) = derivative(r, backend, t)
+    d2r(t) = second_derivative(r, backend, t)
+    d3r(t) = derivative(d2r, backend, t)
     add_axes_rotating!(fr, :Test, 2, 1, r)
 
     f(t) = SVector(cos(t), sin(t), 1.0)
-    df(t) = ForwardDiff.derivative(f, t)
-    d2f(t) = ForwardDiff.derivative(df, t)
-    d3f(t) = ForwardDiff.derivative(d2f, t)
+    df(t) = derivative(f, backend, t)
+    d2f(t) = second_derivative(f, backend, t)
+    d3f(t) = derivative(d2f, backend, t)
 
     add_point!(fr, :ROOT, 1, 1)
     add_point_dynamical!(fr, :Test, 2, 1, 1, f)

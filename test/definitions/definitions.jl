@@ -32,6 +32,9 @@ download(KERNELS; verbose=false, force=false)
     @safetestset "Frozen" begin
         include("frozen.jl")
     end
+    @safetestset "TEME" begin
+        include("teme.jl")
+    end
     @safetestset "Ephemeris" begin
         include("ephemeris.jl")
     end

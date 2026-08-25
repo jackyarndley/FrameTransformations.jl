@@ -52,7 +52,9 @@ function run_worker(phase)
     end
 
     Base.eval(Main, :(using FrameTransformations))
-    Base.eval(Main, :(using ForwardDiff, ReferenceFrameRotations, StaticArrays))
+    Base.eval(Main, :(using DifferentiationInterface, ForwardDiff,
+        ReferenceFrameRotations, StaticArrays))
+    Base.eval(Main, :(const backend = AutoForwardDiff()))
     return Base.invokelatest(run_loaded_phase, phase)
 end
 
@@ -120,9 +122,12 @@ function run_loaded_phase(phase)
                 SVector(1.0, 2.0, 3.0, 0.1, 0.2, 0.3))
             SVector(rotated) + composite.translation(time) + composite.direction(time)
         end
-        measure("first composite ForwardDiff") do
-            ForwardDiff.derivative(
-                time -> sum(composite.translation(time)[SVector(1, 2, 3)]), 0.2)
+        measure("first composite differentiation") do
+            derivative(
+                time -> sum(composite.translation(time)[SVector(1, 2, 3)]),
+                backend,
+                0.2,
+            )
         end
     else
         throw(ArgumentError("unknown first-use phase $phase"))

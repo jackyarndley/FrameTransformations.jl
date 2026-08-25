@@ -1,11 +1,14 @@
 using FrameTransformations
-using ForwardDiff
+using DifferentiationInterface: AutoForwardDiff, derivative, second_derivative
+import ForwardDiff
 using ReferenceFrameRotations
 using StaticArrays
 using LinearAlgebra
 using SPICE
 using RemoteFiles
 using Test
+
+const backend = AutoForwardDiff()
 
 using Tempo
 using JSMDInterfaces.Ephemeris
@@ -23,7 +26,7 @@ end;
 
 download(KERNELS; verbose=false, force=false)
 
-@testset "ASCII rotation derivative implementation" begin
+@testset "DifferentiationInterface rotation derivatives" begin
     angle_state = SVector(
         0.2, -0.3, 0.4,
         0.01, -0.02, 0.03,
@@ -32,15 +35,12 @@ download(KERNELS; verbose=false, force=false)
     )
 
     derivative1_test(function_object, time) =
-        ForwardDiff.derivative(function_object, time)
+        derivative(function_object, backend, time)
     derivative2_test(function_object, time) =
-        ForwardDiff.derivative(
-            epoch -> derivative1_test(function_object, epoch), time
-        )
+        second_derivative(function_object, backend, time)
     derivative3_test(function_object, time) =
-        ForwardDiff.derivative(
-            epoch -> derivative2_test(function_object, epoch), time
-        )
+        derivative(
+            epoch -> derivative2_test(function_object, epoch), backend, time)
 
     for sequence in (
         :ZYX, :XYX, :XYZ, :XZX, :XZY, :YXY,

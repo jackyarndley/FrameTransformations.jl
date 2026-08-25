@@ -13,11 +13,14 @@ else
 end
 
 using BenchmarkTools
-using ForwardDiff
+using DifferentiationInterface: AutoForwardDiff, derivative
+import ForwardDiff
 using Printf: @printf
 using StaticArrays: SVector
 
 include("scenarios.jl")
+
+const backend = AutoForwardDiff()
 
 function benchmark_int(name, default)
     value = tryparse(Int, get(ENV, name, string(default)))
@@ -68,13 +71,48 @@ function benchmark_cases()
         one_hop_translation_compiled = compile_translation(
             synthetic.fr, :Origin, :P1, :ICRF, Val(order))
 
-        add_case!(cases, "synthetic O$order rot one", () -> one_hop_rotation_direct(synthetic.t0), () -> one_hop_rotation_prepared(synthetic.t0), () -> one_hop_rotation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order vec one", () -> one_hop_translation_direct(synthetic.t0), () -> one_hop_translation_prepared(synthetic.t0), () -> one_hop_translation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order rot$(synthetic.suffix)", () -> synthetic.rotation_direct(synthetic.t0), () -> synthetic.rotation_prepared(synthetic.t0), () -> synthetic.rotation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order vec$(synthetic.suffix)", () -> synthetic.translation_direct(synthetic.t0), () -> synthetic.translation_prepared(synthetic.t0), () -> synthetic.translation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order dir$(synthetic.suffix)", () -> synthetic.direction_direct(synthetic.t0), () -> synthetic.direction_prepared(synthetic.t0), () -> synthetic.direction_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order d/dt rot", () -> ForwardDiff.derivative(synthetic_rotation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_rotation_position_prepared, synthetic.t0), () -> ForwardDiff.derivative(synthetic_rotation_position_compiled, synthetic.t0))
-        add_case!(cases, "synthetic O$order d/dt vec", () -> ForwardDiff.derivative(synthetic_translation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_translation_position_prepared, synthetic.t0), () -> ForwardDiff.derivative(synthetic_translation_position_compiled, synthetic.t0))
+        add_case!(
+            cases, "synthetic O$order rot one",
+            () -> one_hop_rotation_direct(synthetic.t0),
+            () -> one_hop_rotation_prepared(synthetic.t0),
+            () -> one_hop_rotation_compiled(synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order vec one",
+            () -> one_hop_translation_direct(synthetic.t0),
+            () -> one_hop_translation_prepared(synthetic.t0),
+            () -> one_hop_translation_compiled(synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order rot$(synthetic.suffix)",
+            () -> synthetic.rotation_direct(synthetic.t0),
+            () -> synthetic.rotation_prepared(synthetic.t0),
+            () -> synthetic.rotation_compiled(synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order vec$(synthetic.suffix)",
+            () -> synthetic.translation_direct(synthetic.t0),
+            () -> synthetic.translation_prepared(synthetic.t0),
+            () -> synthetic.translation_compiled(synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order dir$(synthetic.suffix)",
+            () -> synthetic.direction_direct(synthetic.t0),
+            () -> synthetic.direction_prepared(synthetic.t0),
+            () -> synthetic.direction_compiled(synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order d/dt rot",
+            () -> derivative(synthetic_rotation_position, backend, synthetic.t0),
+            () -> derivative(synthetic_rotation_position_prepared, backend, synthetic.t0),
+            () -> derivative(synthetic_rotation_position_compiled, backend, synthetic.t0),
+        )
+        add_case!(
+            cases, "synthetic O$order d/dt vec",
+            () -> derivative(synthetic_translation_position, backend, synthetic.t0),
+            () -> derivative(synthetic_translation_position_prepared, backend, synthetic.t0),
+            () -> derivative(synthetic_translation_position_compiled, backend, synthetic.t0),
+        )
     end
 
     for order in (2, 3, 4)
@@ -88,10 +126,30 @@ function benchmark_cases()
         de440_translation_position_compiled(t) = de440_vector.translation_compiled(t)[SVector(1, 2, 3)]
         de440_translation_position_prepared(t) = de440_vector.translation_prepared(t)[SVector(1, 2, 3)]
 
-        add_case!(cases, "de440 O$order rot$(de440.suffix)", () -> de440.rotation_direct(de440.t0), () -> de440.rotation_prepared(de440.t0), () -> de440.rotation_compiled(de440.t0))
-        add_case!(cases, "de440 O$order vec$(de440_vector.suffix)", () -> de440_vector.translation_direct(de440_vector.t0), () -> de440_vector.translation_prepared(de440_vector.t0), () -> de440_vector.translation_compiled(de440_vector.t0))
-        add_case!(cases, "de440 O$order d/dt rot", () -> ForwardDiff.derivative(de440_rotation_position, de440.t0), () -> ForwardDiff.derivative(de440_rotation_position_prepared, de440.t0), () -> ForwardDiff.derivative(de440_rotation_position_compiled, de440.t0))
-        add_case!(cases, "de440 O$order d/dt vec", () -> ForwardDiff.derivative(de440_translation_position, de440_vector.t0), () -> ForwardDiff.derivative(de440_translation_position_prepared, de440_vector.t0), () -> ForwardDiff.derivative(de440_translation_position_compiled, de440_vector.t0))
+        add_case!(
+            cases, "de440 O$order rot$(de440.suffix)",
+            () -> de440.rotation_direct(de440.t0),
+            () -> de440.rotation_prepared(de440.t0),
+            () -> de440.rotation_compiled(de440.t0),
+        )
+        add_case!(
+            cases, "de440 O$order vec$(de440_vector.suffix)",
+            () -> de440_vector.translation_direct(de440_vector.t0),
+            () -> de440_vector.translation_prepared(de440_vector.t0),
+            () -> de440_vector.translation_compiled(de440_vector.t0),
+        )
+        add_case!(
+            cases, "de440 O$order d/dt rot",
+            () -> derivative(de440_rotation_position, backend, de440.t0),
+            () -> derivative(de440_rotation_position_prepared, backend, de440.t0),
+            () -> derivative(de440_rotation_position_compiled, backend, de440.t0),
+        )
+        add_case!(
+            cases, "de440 O$order d/dt vec",
+            () -> derivative(de440_translation_position, backend, de440_vector.t0),
+            () -> derivative(de440_translation_position_prepared, backend, de440_vector.t0),
+            () -> derivative(de440_translation_position_compiled, backend, de440_vector.t0),
+        )
     end
 
     return Tuple(cases)

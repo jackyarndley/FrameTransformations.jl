@@ -12,11 +12,14 @@ else
     Pkg.instantiate(; io=devnull, workspace=true)
 end
 
-using ForwardDiff
+using DifferentiationInterface: AutoForwardDiff, derivative
+import ForwardDiff
 using Profile
 using StaticArrays: SVector
 
 include("scenarios.jl")
+
+const backend = AutoForwardDiff()
 
 function benchmark_int(name, default)
     value = tryparse(Int, get(ENV, name, string(default)))
@@ -45,7 +48,11 @@ function main()
     synthetic.translation_compiled(synthetic.t0)
     de440.rotation_direct(de440.t0)
     de440.rotation_compiled(de440.t0)
-    ForwardDiff.derivative(t -> synthetic.translation_compiled(t)[SVector(1, 2, 3)], synthetic.t0)
+    derivative(
+        t -> synthetic.translation_compiled(t)[SVector(1, 2, 3)],
+        backend,
+        synthetic.t0,
+    )
 
     Profile.init(delay = 0.0001)
 
@@ -73,10 +80,10 @@ function main()
         end
     end)
 
-    profile_block("synthetic compiled ForwardDiff", () -> begin
+    profile_block("synthetic compiled DifferentiationInterface", () -> begin
         pos(t) = synthetic.translation_compiled(t)[SVector(1, 2, 3)]
         for _ in 1:n_ad
-            ForwardDiff.derivative(pos, synthetic.t0)
+            derivative(pos, backend, synthetic.t0)
         end
     end)
 end

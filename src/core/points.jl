@@ -125,24 +125,9 @@ function _next_translation_function(previous, ::Val{N}) where {N}
     end
 end
 
-function _translation_from_base(position, ::Val{2})
+function _translation_from_base(position, order::Val)
     return t -> _translation_from_parts(
-        Val(2), position(t), derivative1(position, t))
-end
-
-function _translation_from_base(position, ::Val{3})
-    return t -> _translation_from_parts(
-        Val(3), position(t), derivative1(position, t), derivative2(position, t))
-end
-
-function _translation_from_base(position, ::Val{4})
-    return t -> _translation_from_parts(
-        Val(4),
-        position(t),
-        derivative1(position, t),
-        derivative2(position, t),
-        derivative3(position, t),
-    )
+        order, _value_derivatives(position, t, order)...)
 end
 
 function _translation_from_second(state6, ::Val{3})

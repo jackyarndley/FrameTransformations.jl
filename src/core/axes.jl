@@ -122,30 +122,8 @@ function _next_rotation_function(previous, ::Val{N}) where {N}
     end
 end
 
-function _rotation_from_base(rotation3, ::Val{2})
-    return t -> Rotation(
-        rotation3(t),
-        DCM(derivative1(rotation3, t)),
-    )
-end
-
-
-function _rotation_from_base(rotation3, ::Val{3})
-    return t -> Rotation(
-        rotation3(t),
-        DCM(derivative1(rotation3, t)),
-        DCM(derivative2(rotation3, t)),
-    )
-end
-
-
-function _rotation_from_base(rotation3, ::Val{4})
-    return t -> Rotation(
-        rotation3(t),
-        DCM(derivative1(rotation3, t)),
-        DCM(derivative2(rotation3, t)),
-        DCM(derivative3(rotation3, t)),
-    )
+function _rotation_from_base(rotation3, order::Val)
+    return t -> Rotation(map(DCM, _value_derivatives(rotation3, t, order)))
 end
 
 function _rotation_from_second(rotation6, ::Val{3})
