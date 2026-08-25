@@ -23,7 +23,7 @@ Tempo = "c33777b2-e695-4fae-9135-aeae8855dd81"
 Ephemerides = {rev = "main", url = "https://github.com/jackyarndley/Ephemerides.jl"}
 IERSConventions = {rev = "main", url = "https://github.com/jackyarndley/IERSConventions.jl"}
 JSMDUtils = {rev = "main", url = "https://github.com/jackyarndley/JSMDUtils.jl"}
-Tempo = {rev = "main", url = "https://github.com/jackyarndley/Tempo.jl"}
+Tempo = {rev = "0ff7a873048469e191ef73b06f75301a3fc51e25", url = "https://github.com/jackyarndley/Tempo.jl"}
 
 [weakdeps]
 Ephemerides = "6a9c3322-c8fe-4c26-8ad6-14a6f8acd2a0"
@@ -42,7 +42,7 @@ JSMDUtils = "1"
 ReferenceFrameRotations = "3"
 SMDGraphs = "0.2"
 StaticArrays = "1"
-Tempo = "1.2"
+Tempo = "1.4"
 julia = "1.10, 1.11, 1.12"
 
 [extras]

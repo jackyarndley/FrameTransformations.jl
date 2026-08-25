@@ -17,7 +17,7 @@ Tempo = "c33777b2-e695-4fae-9135-aeae8855dd81"
 Ephemerides = {rev = "main", url = "https://github.com/jackyarndley/Ephemerides.jl"}
 FrameTransformations = {path = ".."}
 JSMDUtils = {rev = "main", url = "https://github.com/jackyarndley/JSMDUtils.jl"}
-Tempo = {rev = "main", url = "https://github.com/jackyarndley/Tempo.jl"}
+Tempo = {rev = "0ff7a873048469e191ef73b06f75301a3fc51e25", url = "https://github.com/jackyarndley/Tempo.jl"}
 
 [compat]
 Documenter = "1"

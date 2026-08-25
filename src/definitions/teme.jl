@@ -37,22 +37,13 @@ teme_rot9_gcrf_to_teme(tt_seconds::Number, model::IERSModel=iers2010b) =
 teme_rot12_gcrf_to_teme(tt_seconds::Number, model::IERSModel=iers2010b) =
     _teme_rotation(tt_seconds, model, Val(4))
 
-@static if isdefined(Tempo, :prepare_time_conversion)
-    _prepare_tt_conversion(scale) = Tempo.prepare_time_conversion(scale(), TT)
-else
-    # Tempo releases before prepared conversions still expose apply_offsets publicly.
-    _prepare_tt_conversion(scale) =
-        time -> Tempo.apply_offsets(Tempo.TIMESCALES, time, scale(), TT)
-end
-
 """
     add_axes_teme!(frames, name=:TEME, parentid=AXESID_ICRF, id=AXESID_TEME;
         model=iers2010b)
 
-Add True Equator, Mean Equinox axes to `frames`. The frame-system time scale is
-converted to Terrestrial Time by a conversion prepared once during registration when
-supported by Tempo. Older Tempo 1.x releases use their public `apply_offsets` path.
-Missing kinematic orders are generated with DifferentiationInterface.
+Add True Equator, Mean Equinox axes to `frames`. A prepared conversion from the
+frame-system time scale to Terrestrial Time is captured during registration. Missing
+kinematic orders are generated with DifferentiationInterface.
 """
 function add_axes_teme!(
     frames::FrameSystem,
@@ -62,7 +53,7 @@ function add_axes_teme!(
     model::IERSModel=iers2010b,
 )
     _require_celestial_parent(parentid, "True Equator, Mean Equinox (TEME)")
-    to_tt = _prepare_tt_conversion(timescale(frames))
+    to_tt = Tempo.prepare_time_conversion(timescale(frames)(), TT)
     rotation = time -> teme_rot3_gcrf_to_teme(to_tt(time), model)
     return add_axes_rotating!(frames, name, id, parentid, rotation)
 end

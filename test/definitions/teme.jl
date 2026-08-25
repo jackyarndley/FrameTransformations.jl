@@ -71,11 +71,7 @@ end
     add_axes_gcrf!(frames)
     add_axes_teme!(frames, :TEME, AXESID_GCRF)
 
-    to_tt = if isdefined(Tempo, :prepare_time_conversion)
-        Tempo.prepare_time_conversion(TDB, TT)
-    else
-        epoch -> Tempo.apply_offsets(Tempo.TIMESCALES, epoch, TDB, TT)
-    end
+    to_tt = Tempo.prepare_time_conversion(TDB, TT)
     @test rotation3(frames, :GCRF, :TEME, time)[1] ≈
           teme_rot3_gcrf_to_teme(to_tt(time)) atol=2e-15 rtol=2e-15
 
