@@ -55,16 +55,16 @@ using Test
     end
 
     # --------------------------------------------------------------------------
-    # Rotation: inverse direction — verify Inv type parameter
+    # Rotation: inverse direction is part of the specialized operation
     # --------------------------------------------------------------------------
     @testset "compile_rotation — inverse" begin
         cr_fwd = compile_rotation(fr, :ICRF, :A)
         cr_inv = compile_rotation(fr, :A, :ICRF)
         @test cr_fwd(t)[1] ≈ inv(cr_inv(t))[1]
 
-        # Verify inverse is encoded in the type, not as a runtime field
-        @test cr_fwd isa CompiledRotation{4, false}
-        @test cr_inv isa CompiledRotation{4, true}
+        @test cr_fwd isa CompiledRotation{4}
+        @test cr_inv isa CompiledRotation{4}
+        @test typeof(cr_fwd) !== typeof(cr_inv)
     end
 
     # --------------------------------------------------------------------------
@@ -107,13 +107,13 @@ using Test
     @testset "compile_rotation — order selection" begin
         cr1 = compile_rotation(fr, :ICRF, :A, Val(1))
         @test cr1 isa CompiledRotation{1}
-        @test cr1.fun(t) isa Rotation{1}
+        @test cr1.function_object(t) isa Rotation{1}
         R1 = cr1(t)
         @test R1[1] ≈ rotation3(fr, 1, 2, t)[1]
 
         cr2 = compile_rotation(fr, :ICRF, :A, Val(2))
         @test cr2 isa CompiledRotation{2}
-        @test cr2.fun(t) isa Rotation{2}
+        @test cr2.function_object(t) isa Rotation{2}
         R2 = cr2(t)
         R2_core = rotation6(fr, 1, 2, t)
         @test R2[1] ≈ R2_core[1]
@@ -241,6 +241,58 @@ using Test
         @test_throws ArgumentError compile_direction(fr, :sun, :ICRF, Val(5))
     end
 
+    @testset "direct, prepared, and compiled equivalence" begin
+        rotation_functions = (rotation3, rotation6, rotation9, rotation12)
+        vector_functions = (vector3, vector6, vector9, vector12)
+        direction_functions = (direction3, direction6, direction9, direction12)
+
+        for index in 1:4
+            order_value = Val(index)
+
+            for (from, to) in (
+                (:ICRF, :ICRF), # identity
+                (:ICRF, :A),    # direct forward
+                (:A, :ICRF),    # direct inverse
+                (:ICRF, :C),    # multi-hop forward
+                (:C, :ICRF),    # multi-hop reverse
+            )
+                direct = rotation_functions[index](fr, from, to, t)
+                prepared = prepare_rotation(fr, from, to, order_value)(t)
+                compiled = compile_rotation(fr, from, to, order_value)(t)
+                for component in 1:index
+                    @test prepared[component] ≈ direct[component]
+                    @test compiled[component] ≈ direct[component]
+                end
+            end
+
+            for (from, to, axes) in (
+                (:Origin, :Origin, :ICRF),
+                (:Origin, :P1, :ICRF),
+                (:P1, :Origin, :A),
+                (:Origin, :P2, :C),
+                (:P2, :Origin, :A),
+            )
+                direct = vector_functions[index](fr, from, to, axes, t)
+                prepared = prepare_translation(
+                    fr, from, to, axes, order_value)(t)
+                compiled = compile_translation(
+                    fr, from, to, axes, order_value)(t)
+                @test prepared ≈ direct
+                @test compiled ≈ direct
+                @test prepared isa SVector{3 * index}
+            end
+
+            for axes in (:ICRF, :A, :C)
+                direct = direction_functions[index](fr, :sun, axes, t)
+                prepared = prepare_direction(fr, :sun, axes, order_value)(t)
+                compiled = compile_direction(fr, :sun, axes, order_value)(t)
+                @test prepared ≈ direct
+                @test compiled ≈ direct
+                @test prepared isa SVector{3 * index}
+            end
+        end
+    end
+
     # --------------------------------------------------------------------------
     # ForwardDiff through compiled rotation
     # --------------------------------------------------------------------------
@@ -274,32 +326,73 @@ using Test
         @test J ≈ d[SVector(4,5,6)] atol=1e-10
     end
 
+    @testset "ForwardDiff — prepared routes" begin
+        prepared_rotation = prepare_rotation(fr, :C, :ICRF, Val(2))
+        prepared_translation = prepare_translation(
+            fr, :P2, :Origin, :A, Val(2))
+        prepared_direction = prepare_direction(fr, :sun, :C, Val(2))
+
+        rotation_derivative = ForwardDiff.derivative(
+            time -> prepared_rotation(time)[1], t)
+        translation_derivative = ForwardDiff.derivative(
+            time -> prepared_translation(time)[SVector(1, 2, 3)], t)
+        direction_derivative = ForwardDiff.derivative(
+            time -> prepared_direction(time)[SVector(1, 2, 3)], t)
+
+        @test rotation_derivative ≈ prepared_rotation(t)[2] atol=1e-10
+        @test translation_derivative ≈
+            prepared_translation(t)[SVector(4, 5, 6)] atol=1e-10
+        @test direction_derivative ≈
+            prepared_direction(t)[SVector(4, 5, 6)] atol=1e-10
+
+        identity_rotation = prepare_rotation(fr, :ICRF, :ICRF, Val(1))
+        identity_translation = prepare_translation(
+            fr, :Origin, :Origin, :ICRF, Val(1))
+        @test ForwardDiff.derivative(
+            time -> identity_rotation(time)[1][1, 1], t) == 0
+        @test ForwardDiff.derivative(
+            time -> identity_translation(time)[1], t) == 0
+    end
+
     # --------------------------------------------------------------------------
-    # Compact compiled callables erase route structure from their public type
+    # Prepared callables erase route structure from their public type
     # --------------------------------------------------------------------------
-    @testset "compact compiled callables" begin
-        compact_rotation_a = compile_rotation(
-            fr, :ICRF, :A, Val(1); specialize=false)
-        compact_rotation_c = compile_rotation(
-            fr, :ICRF, :C, Val(1); specialize=false)
+    @testset "prepared callables" begin
+        compact_rotation_a = prepare_rotation(fr, :ICRF, :A, Val(1))
+        compact_rotation_c = prepare_rotation(fr, :ICRF, :C, Val(1))
+        compact_rotation_inverse = prepare_rotation(fr, :A, :ICRF, Val(1))
+        compact_rotation_identity = prepare_rotation(fr, :ICRF, :ICRF, Val(1))
         @test typeof(compact_rotation_a) === typeof(compact_rotation_c)
+        @test typeof(compact_rotation_a) === typeof(compact_rotation_inverse)
+        @test typeof(compact_rotation_a) === typeof(compact_rotation_identity)
+        @test compact_rotation_a isa PreparedRotation{1,Float64}
         @test compact_rotation_a(t)[1] ≈ rotation3(fr, 1, 2, t)[1]
         @test compact_rotation_c(t)[1] ≈ rotation3(fr, 1, 4, t)[1]
+        @test compact_rotation_inverse(t)[1] ≈ rotation3(fr, 2, 1, t)[1]
 
-        compact_translation_1 = compile_translation(
-            fr, :Origin, :P1, :ICRF, Val(1); specialize=false)
-        compact_translation_2 = compile_translation(
-            fr, :Origin, :P2, :ICRF, Val(1); specialize=false)
+        compact_translation_1 = prepare_translation(
+            fr, :Origin, :P1, :ICRF, Val(1))
+        compact_translation_2 = prepare_translation(
+            fr, :Origin, :P2, :ICRF, Val(1))
+        compact_translation_inverse = prepare_translation(
+            fr, :P1, :Origin, :ICRF, Val(1))
+        compact_translation_identity = prepare_translation(
+            fr, :Origin, :Origin, :ICRF, Val(1))
         @test typeof(compact_translation_1) === typeof(compact_translation_2)
+        @test typeof(compact_translation_1) === typeof(compact_translation_inverse)
+        @test typeof(compact_translation_1) === typeof(compact_translation_identity)
+        @test compact_translation_1 isa PreparedTranslation{1,Float64}
         @test compact_translation_1(t) ≈ vector3(fr, 1, 2, 1, t)
         @test compact_translation_2(t) ≈ vector3(fr, 1, 3, 1, t)
 
-        compact_direction = compile_direction(
-            fr, :sun, :ICRF, Val(1); specialize=false)
+        compact_direction = prepare_direction(fr, :sun, :ICRF, Val(1))
+        compact_direction_rotated = prepare_direction(fr, :sun, :C, Val(1))
+        @test typeof(compact_direction) === typeof(compact_direction_rotated)
+        @test compact_direction isa PreparedDirection{1,Float64}
         @test compact_direction(t) ≈ direction3(fr, :sun, 1, t)
 
-        compact_translation_ad = compile_translation(
-            fr, :Origin, :P1, :ICRF, Val(2); specialize=false)
+        compact_translation_ad = prepare_translation(
+            fr, :Origin, :P1, :ICRF, Val(2))
         compact_position(time) = compact_translation_ad(time)[SVector(1,2,3)]
         compact_jacobian = ForwardDiff.derivative(compact_position, t)
         @test compact_jacobian ≈

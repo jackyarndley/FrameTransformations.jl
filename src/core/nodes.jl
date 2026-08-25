@@ -5,8 +5,8 @@
 # ------
 # Functions
 
-struct FramePointFunctions{O,T,FW<:FrameFunWrapper,RF<:Tuple}
-    fun::NTuple{O,FW}
+struct FramePointFunctions{O,T,FW<:Tuple,RF<:Tuple}
+    fun::FW
     raw::RF
 end
 
@@ -15,11 +15,18 @@ Base.getindex(pf::FramePointFunctions, i) = pf.fun[i]
 @inline _raw_function(pf::FramePointFunctions, ::Val{I}) where {I} =
     getfield(pf.raw, I)
 
+@inline function _order_frame_point_function(::Val{N}, fun) where {N}
+    return t -> Translation{N}(fun(t))
+end
+
 function _frame_point_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
-    wrappers = ntuple(i -> _frame_point_fun_wrapper(Val(O), T, funs[i]), Val(O))
+    O > length(funs) && throw(ArgumentError("required at least $O functions."))
+    raw = ntuple(i -> _order_frame_point_function(Val(i), funs[i]), Val(O))
+    wrappers = ntuple(
+        i -> _frame_point_fun_wrapper(Val(i), T, raw[i]), Val(O))
     return FramePointFunctions{
-        O,T,eltype(typeof(wrappers)),typeof(funs)
-    }(wrappers, funs)
+        O,T,typeof(wrappers),typeof(raw)
+    }(wrappers, raw)
 end
 
 function FramePointFunctions{T}(funs::Vararg{Any,O}) where {T,O}
@@ -27,7 +34,6 @@ function FramePointFunctions{T}(funs::Vararg{Any,O}) where {T,O}
 end
 
 function FramePointFunctions{O,T}(funs...) where {O,T}
-    O > length(funs) && throw(ArgumentError("required at least $O functions."))
     return _frame_point_functions(Val(O), T, funs)
 end
 
@@ -36,7 +42,8 @@ function FramePointFunctions{O,T}(fun) where {O,T}
 end
 
 function FramePointFunctions{O,T}() where {O,T}
-    return FramePointFunctions{O,T}(t -> Translation{O,T}())
+    zero_position = t -> SVector(zero(t), zero(t), zero(t))
+    return FramePointFunctions{O,T}(zero_position)
 end
 
 
@@ -94,20 +101,11 @@ Base.getindex(pf::FrameAxesFunctions, i) = pf.fun[i]
 @inline _raw_function(pf::FrameAxesFunctions, ::Val{I}) where {I} =
     getfield(pf.raw, I)
 
-function _frame_axes_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
-    wrappers = ntuple(i -> _frame_axes_fun_wrapper(Val(O), T, funs[i]), Val(O))
-    return FrameAxesFunctions{
-        O,T,typeof(wrappers),typeof(funs)
-    }(wrappers, funs)
-end
-
 @inline function _order_frame_axes_function(::Val{N}, fun) where {N}
     return t -> Rotation{N}(fun(t))
 end
 
-function _ordered_frame_axes_functions(
-        ::Val{O}, ::Type{T}, funs::Tuple
-    ) where {O,T}
+function _frame_axes_functions(::Val{O}, ::Type{T}, funs::Tuple) where {O,T}
     O > length(funs) && throw(ArgumentError("required at least $O functions."))
     raw = ntuple(
         i -> _order_frame_axes_function(Val(i), funs[i]), Val(O))
@@ -123,7 +121,6 @@ function FrameAxesFunctions{T}(funs::Vararg{Any,O}) where {T,O}
 end
 
 function FrameAxesFunctions{O,T}(funs...) where {O,T}
-    O > length(funs) && throw(ArgumentError("required at least $O functions."))
     return _frame_axes_functions(Val(O), T, funs)
 end
 
@@ -132,9 +129,8 @@ function FrameAxesFunctions{O,T}(fun) where {O,T}
 end
 
 function FrameAxesFunctions{O,T}() where {O,T}
-    identity_rotation = t -> one(T) * I
-    return _ordered_frame_axes_functions(
-        Val(O), T, ntuple(_ -> identity_rotation, Val(O)))
+    identity_rotation = t -> one(t) * I
+    return FrameAxesFunctions{O,T}(identity_rotation)
 end
 
 # ------

@@ -152,7 +152,7 @@ using JSMDUtils.Math
 fun(t) = angle_to_dcm(-t, :Z)
 dfun(t) = (angle_to_dcm(-t, :Z), Math.angle_to_δdcm([-t, -1], :Z))
 
-add_axes_rotating!(F, :ROX2, 4, :ICRF, fun, dfun)
+add_axes_rotating!(F, :ROX2, 4, :ICRF, fun; rotation6=dfun)
 
 R2 = rotation6(F, 1, 3, π / 4)
 

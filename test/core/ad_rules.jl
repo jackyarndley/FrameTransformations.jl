@@ -194,3 +194,36 @@ end
     g_zy_r = Zygote.gradient(t -> sum(rotation3(_fr, 1, 2, t).m[1]), t0)[1]
     @test g_fd_r ≈ g_zy_r rtol = 1e-5
 end
+
+@testset "prepared and compiled callable reverse rules" begin
+    time = 0.8
+    callables = (
+        prepare_rotation(_fr, :RotZ, :ICRF, Val(1)),
+        compile_rotation(_fr, :RotZ, :ICRF, Val(1)),
+        prepare_translation(_fr, :Target, :Root, :RotZ, Val(1)),
+        compile_translation(_fr, :Target, :Root, :RotZ, Val(1)),
+        prepare_direction(_fr, :LineOfSight, :RotZ, Val(1)),
+        compile_direction(_fr, :LineOfSight, :RotZ, Val(1)),
+    )
+
+    for function_object in callables
+        scalar_function = if function_object isa Union{
+                PreparedRotation,CompiledRotation}
+            epoch -> sum(function_object(epoch)[1])
+        else
+            epoch -> sum(function_object(epoch))
+        end
+        expected = ForwardDiff.derivative(scalar_function, time)
+        @test Zygote.gradient(scalar_function, time)[1] ≈
+            expected atol=1e-11 rtol=1e-11
+
+        rule = Mooncake.build_rrule(scalar_function, time)
+        _, (_, mooncake_gradient) = Mooncake.value_and_gradient!!(
+            rule, scalar_function, time)
+        @test mooncake_gradient ≈ expected atol=1e-11 rtol=1e-11
+    end
+
+    prepared_identity = prepare_rotation(_fr, :ICRF, :ICRF, Val(1))
+    identity_scalar = epoch -> prepared_identity(epoch)[1][1, 1]
+    @test Zygote.gradient(identity_scalar, time)[1] == 0
+end

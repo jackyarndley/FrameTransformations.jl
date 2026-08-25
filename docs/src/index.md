@@ -13,12 +13,14 @@ extensible axes/point graph models for mission analysis and space mission design
 - Read binary ephemeris files (via [Ephemerides.jl](https://github.com/JuliaSpaceMissionDesign/Ephemerides.jl) or [CalcephEphemeris.jl](https://github.com/JuliaSpaceMissionDesign/CalcephEphemeris.jl) extensions).
 - Create custom reference frame systems with both standard and user-defined points, axes and directions.
 - Transform states and their higher-order derivatives between different frames (up to jerk).
-- Compile transformations into zero-overhead, AD-transparent callables for hot loops via [`compile_rotation`](@ref), [`compile_translation`](@ref) and [`compile_direction`](@ref).
+- Prepare compact, AD-transparent routes for storage in models via [`prepare_rotation`](@ref), [`prepare_translation`](@ref), and [`prepare_direction`](@ref).
+- Compile fully specialized transformations for isolated hot loops via [`compile_rotation`](@ref), [`compile_translation`](@ref), and [`compile_direction`](@ref).
 
 Automatic differentiation is tested through
 [DifferentiationInterface.jl](https://github.com/JuliaDiff/DifferentiationInterface.jl)
 with ForwardDiff, FiniteDiff, Zygote, and Mooncake backends. Analytic ChainRules rules use
-the next available state derivative instead of differentiating through the dynamic graph.
+the next available state derivative for direct graph operations. Prepared and compiled
+callable rules differentiate their resolved route without traversing the graph.
 
 ## Installation 
 

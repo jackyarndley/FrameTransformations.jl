@@ -45,10 +45,10 @@ function add_axes_bcrtod!(
     else
         add_axes_rotating!(
             fr, name, id, AXESID_ICRF,
-            t -> _bcrtod(t, vid),
-            t -> _bcrtod_derivative1(t, vid),
-            t -> _bcrtod_derivative2(t, vid),
-            t -> _bcrtod_derivative3(t, vid),
+            t -> _bcrtod(t, vid);
+            rotation6=t -> _bcrtod_derivative1(t, vid),
+            rotation9=t -> _bcrtod_derivative2(t, vid),
+            rotation12=t -> _bcrtod_derivative3(t, vid),
         )
     end
 end

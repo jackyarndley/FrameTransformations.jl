@@ -5,10 +5,17 @@ import ChainRulesCore: rrule
 using ChainRulesCore:
     AbstractZero,
     NoTangent,
+    Tangent,
     ZeroTangent,
     unthunk
 import FrameTransformations
 using FrameTransformations:
+    PreparedRotation,
+    PreparedTranslation,
+    PreparedDirection,
+    CompiledRotation,
+    CompiledTranslation,
+    CompiledDirection,
     FrameSystem,
     Rotation,
     direction3,
@@ -59,6 +66,22 @@ function rotation_components(value::ChainRulesCore.Tangent)
         Tuple(components.backing) : Tuple(components)
 end
 rotation_components(value) = value.m
+
+function rrule(::typeof(getindex), rotation::Rotation{N,T}, index::Int) where {N,T}
+    value = rotation[index]
+
+    function rotation_getindex_pullback(output_tangent)
+        cotangent = unthunk(output_tangent)
+        selected = cotangent isa DCM ? cotangent : DCM(SMatrix{3,3}(cotangent))
+        zero_dcm = DCM(zero(SMatrix{3,3,T}))
+        components = ntuple(
+            component -> component == index ? selected : zero_dcm, Val(N))
+        rotation_tangent = Tangent{typeof(rotation)}(; m=components)
+        return NoTangent(), rotation_tangent, NoTangent()
+    end
+
+    return value, rotation_getindex_pullback
+end
 
 frobenius_dot(left::NTuple{N}, right::NTuple{N}) where {N} =
     sum(left .* right)
@@ -112,6 +135,21 @@ function fallback_rrule(function_object, arguments...)
     end
 
     return value, fallback_pullback
+end
+
+const PreparedOrCompiled = Union{
+    PreparedRotation,
+    PreparedTranslation,
+    PreparedDirection,
+    CompiledRotation,
+    CompiledTranslation,
+    CompiledDirection,
+}
+
+function rrule(function_object::PreparedOrCompiled, time::Number)
+    value = function_object(time)
+    time_derivative = derivative(function_object, time)
+    return rule_result(value, time_derivative, Val(0))
 end
 
 function vector_rrule(

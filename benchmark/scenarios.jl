@@ -30,6 +30,10 @@ function rotation_compiled_callable(fr, from, to, order)
     throw(ArgumentError("unsupported rotation order $order"))
 end
 
+function rotation_prepared_callable(fr, from, to, order)
+    return prepare_rotation(fr, from, to, Val(order))
+end
+
 function translation_direct_callable(fr, from, to, axes, order)
     if order == 2
         return t -> vector6(fr, from, to, axes, t)
@@ -50,6 +54,10 @@ function translation_compiled_callable(fr, from, to, axes, order)
         return compile_translation(fr, from, to, axes, Val(4))
     end
     throw(ArgumentError("unsupported translation order $order"))
+end
+
+function translation_prepared_callable(fr, from, to, axes, order)
+    return prepare_translation(fr, from, to, axes, Val(order))
 end
 
 function direction_direct_callable(fr, name, axes, order)
@@ -74,6 +82,10 @@ function direction_compiled_callable(fr, name, axes, order)
     throw(ArgumentError("unsupported direction order $order"))
 end
 
+function direction_prepared_callable(fr, name, axes, order)
+    return prepare_direction(fr, name, axes, Val(order))
+end
+
 function order_suffix(order)
     return 3 * order
 end
@@ -94,10 +106,14 @@ function build_synthetic_benchmark_scenario(order::Int = 4)
 
     t0 = pi / 3
     rotation_direct = rotation_direct_callable(fr, :ICRF, :C, order)
+    rotation_prepared = rotation_prepared_callable(fr, :ICRF, :C, order)
     rotation_compiled = rotation_compiled_callable(fr, :ICRF, :C, order)
     translation_direct = translation_direct_callable(fr, :Origin, :P2, :A, order)
+    translation_prepared = translation_prepared_callable(
+        fr, :Origin, :P2, :A, order)
     translation_compiled = translation_compiled_callable(fr, :Origin, :P2, :A, order)
     direction_direct = direction_direct_callable(fr, :sun, :A, order)
+    direction_prepared = direction_prepared_callable(fr, :sun, :A, order)
     direction_compiled = direction_compiled_callable(fr, :sun, :A, order)
 
     return (
@@ -106,10 +122,13 @@ function build_synthetic_benchmark_scenario(order::Int = 4)
         fr = fr,
         t0 = t0,
         rotation_direct = rotation_direct,
+        rotation_prepared = rotation_prepared,
         rotation_compiled = rotation_compiled,
         translation_direct = translation_direct,
+        translation_prepared = translation_prepared,
         translation_compiled = translation_compiled,
         direction_direct = direction_direct,
+        direction_prepared = direction_prepared,
         direction_compiled = direction_compiled,
     )
 end
@@ -124,6 +143,7 @@ function build_de440_benchmark_scenario(order::Int = 4)
 
     t0 = 1.0e6
     rotation_direct = rotation_direct_callable(fr, :ME421, :ICRF, order)
+    rotation_prepared = rotation_prepared_callable(fr, :ME421, :ICRF, order)
     rotation_compiled = rotation_compiled_callable(fr, :ME421, :ICRF, order)
 
     @assert rotation_direct(t0) == rotation_compiled(t0)
@@ -134,6 +154,7 @@ function build_de440_benchmark_scenario(order::Int = 4)
         fr = fr,
         t0 = t0,
         rotation_direct = rotation_direct,
+        rotation_prepared = rotation_prepared,
         rotation_compiled = rotation_compiled,
     )
 end
@@ -155,6 +176,8 @@ function build_de440_vector_benchmark_scenario(order::Int = 4)
 
     t0 = 1.0e6
     translation_direct = translation_direct_callable(fr, :Earth, :Moon, :ME421, order)
+    translation_prepared = translation_prepared_callable(
+        fr, :Earth, :Moon, :ME421, order)
     translation_compiled = translation_compiled_callable(fr, :Earth, :Moon, :ME421, order)
 
     @assert translation_direct(t0) ≈ translation_compiled(t0)
@@ -165,6 +188,7 @@ function build_de440_vector_benchmark_scenario(order::Int = 4)
         fr = fr,
         t0 = t0,
         translation_direct = translation_direct,
+        translation_prepared = translation_prepared,
         translation_compiled = translation_compiled,
     )
 end

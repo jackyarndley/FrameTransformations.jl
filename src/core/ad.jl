@@ -11,3 +11,7 @@ end
 @inline function _frame_axes_fun_wrapper(::Val{O}, ::Type{T}, fun) where {O,T}
     return _build_frame_fun_wrapper(fun, (Tuple{T},), (Rotation{O,T},))
 end
+
+@inline function _frame_vector_fun_wrapper(::Val{O}, ::Type{T}, fun) where {O,T}
+    return _build_frame_fun_wrapper(fun, (Tuple{T},), (SVector{3 * O,T},))
+end

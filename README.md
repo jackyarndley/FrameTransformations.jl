@@ -20,12 +20,28 @@ extensible axes/point graph models for mission analysis and space mission design
 - Read binary ephemeris files (via [Ephemerides.jl](https://github.com/JuliaSpaceMissionDesign/Ephemerides.jl) or [CalcephEphemeris.jl](https://github.com/JuliaSpaceMissionDesign/CalcephEphemeris.jl))
 - Create custom reference frame systems with both standard and user-defined points, axes and directions.
 - Transform states and their higher-order derivatives between different frames (up to jerk).
-- Compile transformations into zero-overhead, AD-transparent callables for hot loops via `compile_rotation`, `compile_translation` and `compile_direction`.
+- Prepare compact, AD-transparent routes for storage in models via `prepare_rotation`, `prepare_translation`, and `prepare_direction`.
+- Compile fully specialized transformations for isolated hot loops via `compile_rotation`, `compile_translation`, and `compile_direction`.
 
 Automatic differentiation is tested through
 [DifferentiationInterface.jl](https://github.com/JuliaDiff/DifferentiationInterface.jl)
 with ForwardDiff, FiniteDiff, Zygote, and Mooncake backends. Analytic ChainRules rules use
-the next available state derivative, avoiding differentiation through the dynamic graph.
+the next available state derivative for direct graph operations. Prepared and compiled
+callables differentiate through their already-resolved routes.
+
+## Transformation modes
+
+| Use case | API |
+| --- | --- |
+| One-off graph query | `rotation6`, `vector6`, `direction6` |
+| Store in a model or trajectory | `prepare_rotation`, `prepare_translation`, `prepare_direction` |
+| Maximum local throughput | `compile_rotation`, `compile_translation`, `compile_direction` |
+
+Prepared and compiled operations snapshot graph topology, so graph changes require preparing
+or compiling again. Use `Val(N)` to select an exact kinematic order. Rotations return
+`Rotation{N}`; translations and directions return `SVector{3N}`. Prepared types erase route
+depth to limit downstream SciML specialization, while compiled types expose the complete route
+to Julia's optimizer.
 
 ## Installation 
 
@@ -55,6 +71,13 @@ Run the derivative-specific backend and pullback suite with:
 julia benchmark/runadbenchmarks.jl
 ```
 
+Measure package load, frame construction, route preparation/compilation, first evaluation,
+and first composite-model use in a clean Julia process with:
+
+```julia
+julia --startup-file=no benchmark/runfirstuse.jl
+```
+
 To run the SPICE position/state workloads used by
 [Brahe PR #376](https://github.com/duncaneddy/brahe/pull/376), use:
 
@@ -62,7 +85,7 @@ To run the SPICE position/state workloads used by
 julia benchmark/runspicebenchmarks.jl
 ```
 
-This compares prepared `Ephemerides.jl` chains with direct and compiled
+This compares prepared `Ephemerides.jl` chains with direct, prepared, and compiled
 `FrameTransformations.jl` paths for single Sun/Moon/Mars-barycenter queries, a
 10,000-epoch sequential propagation pattern, and a Sun + Moon third-body acceleration
 adapter. Kernel loading, route preparation, frame-graph construction, and transformation
@@ -73,7 +96,7 @@ default; set `SPICE_KERNEL` to a DE440s BSP file for the exact kernel used by Br
 SPICE_KERNEL=/path/to/de440s.bsp julia benchmark/runspicebenchmarks.jl
 ```
 
-The benchmark script uses `BenchmarkTools.jl` and compares direct versus compiled paths
+The benchmark script uses `BenchmarkTools.jl` and compares direct, prepared, and compiled paths
 for synthetic multi-hop examples and the DE440 lunar-frame rotation case at frame-system
 orders 2, 3, and 4. The DE440 suite includes both rotation and Earth-to-Moon vector
 benchmarks expressed in the lunar ME421 frame. The derivative suite compares analytic
@@ -88,7 +111,7 @@ You can shorten or lengthen the run with:
 BENCHMARK_SECONDS=1 BENCHMARK_SAMPLES=10 julia benchmark/runbenchmarks.jl
 ```
 
-For a quick CPU profile of representative direct and compiled paths, run:
+For a quick CPU profile of representative direct, prepared, and compiled paths, run:
 
 ```julia
 julia benchmark/profile.jl

@@ -132,10 +132,24 @@ end;
     @test_nowarn vector9(frames, 10, 399, 1, 1.0)
     @test_nowarn vector12(frames, 10, 399, 1, 1.0)
 
+    earth_node = only(filter(node -> node.id == 399, points_graph(frames).nodes))
+    for index in 1:4
+        @test FrameTransformations._raw_function(
+            earth_node.f, Val(index))(1.0) isa Translation{index}
+    end
+
     earth_state = compile_translation(frames, 3, 399, 1, Val(2))
+    earth_position_prepared = prepare_translation(frames, 3, 399, 1, Val(1))
+    earth_state_prepared = prepare_translation(frames, 3, 399, 1, Val(2))
+    @test earth_position_prepared(1.0) == vector3(frames, 3, 399, 1, 1.0)
+    @test earth_state_prepared(1.0) == vector6(frames, 3, 399, 1, 1.0)
     @test earth_state(1.0) == vector6(frames, 3, 399, 1, 1.0)
     earth_state(1.0) # compile before measuring the steady-state call
+    earth_position_prepared(1.0)
+    earth_state_prepared(1.0)
     @test (@allocated earth_state(1.0)) == 0
+    @test (@allocated earth_position_prepared(1.0)) == 0
+    @test (@allocated earth_state_prepared(1.0)) == 0
 
     kclear()
 end;

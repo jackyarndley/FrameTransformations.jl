@@ -37,8 +37,8 @@ function configure_benchmarktools!()
     return nothing
 end
 
-function add_case!(cases, name, direct, compiled)
-    push!(cases, (name = name, direct = direct, compiled = compiled))
+function add_case!(cases, name, direct, prepared, compiled)
+    push!(cases, (; name, direct, prepared, compiled))
     return cases
 end
 
@@ -50,14 +50,31 @@ function benchmark_cases()
 
         synthetic_rotation_position(t) = synthetic.rotation_direct(t)[1]
         synthetic_rotation_position_compiled(t) = synthetic.rotation_compiled(t)[1]
+        synthetic_rotation_position_prepared(t) = synthetic.rotation_prepared(t)[1]
         synthetic_translation_position(t) = synthetic.translation_direct(t)[SVector(1, 2, 3)]
         synthetic_translation_position_compiled(t) = synthetic.translation_compiled(t)[SVector(1, 2, 3)]
+        synthetic_translation_position_prepared(t) = synthetic.translation_prepared(t)[SVector(1, 2, 3)]
 
-        add_case!(cases, "synthetic O$order rot$(synthetic.suffix)", () -> synthetic.rotation_direct(synthetic.t0), () -> synthetic.rotation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order vec$(synthetic.suffix)", () -> synthetic.translation_direct(synthetic.t0), () -> synthetic.translation_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order dir$(synthetic.suffix)", () -> synthetic.direction_direct(synthetic.t0), () -> synthetic.direction_compiled(synthetic.t0))
-        add_case!(cases, "synthetic O$order d/dt rot", () -> ForwardDiff.derivative(synthetic_rotation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_rotation_position_compiled, synthetic.t0))
-        add_case!(cases, "synthetic O$order d/dt vec", () -> ForwardDiff.derivative(synthetic_translation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_translation_position_compiled, synthetic.t0))
+        one_hop_rotation_direct = rotation_direct_callable(
+            synthetic.fr, :ICRF, :A, order)
+        one_hop_rotation_prepared = prepare_rotation(
+            synthetic.fr, :ICRF, :A, Val(order))
+        one_hop_rotation_compiled = compile_rotation(
+            synthetic.fr, :ICRF, :A, Val(order))
+        one_hop_translation_direct = translation_direct_callable(
+            synthetic.fr, :Origin, :P1, :ICRF, order)
+        one_hop_translation_prepared = prepare_translation(
+            synthetic.fr, :Origin, :P1, :ICRF, Val(order))
+        one_hop_translation_compiled = compile_translation(
+            synthetic.fr, :Origin, :P1, :ICRF, Val(order))
+
+        add_case!(cases, "synthetic O$order rot one", () -> one_hop_rotation_direct(synthetic.t0), () -> one_hop_rotation_prepared(synthetic.t0), () -> one_hop_rotation_compiled(synthetic.t0))
+        add_case!(cases, "synthetic O$order vec one", () -> one_hop_translation_direct(synthetic.t0), () -> one_hop_translation_prepared(synthetic.t0), () -> one_hop_translation_compiled(synthetic.t0))
+        add_case!(cases, "synthetic O$order rot$(synthetic.suffix)", () -> synthetic.rotation_direct(synthetic.t0), () -> synthetic.rotation_prepared(synthetic.t0), () -> synthetic.rotation_compiled(synthetic.t0))
+        add_case!(cases, "synthetic O$order vec$(synthetic.suffix)", () -> synthetic.translation_direct(synthetic.t0), () -> synthetic.translation_prepared(synthetic.t0), () -> synthetic.translation_compiled(synthetic.t0))
+        add_case!(cases, "synthetic O$order dir$(synthetic.suffix)", () -> synthetic.direction_direct(synthetic.t0), () -> synthetic.direction_prepared(synthetic.t0), () -> synthetic.direction_compiled(synthetic.t0))
+        add_case!(cases, "synthetic O$order d/dt rot", () -> ForwardDiff.derivative(synthetic_rotation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_rotation_position_prepared, synthetic.t0), () -> ForwardDiff.derivative(synthetic_rotation_position_compiled, synthetic.t0))
+        add_case!(cases, "synthetic O$order d/dt vec", () -> ForwardDiff.derivative(synthetic_translation_position, synthetic.t0), () -> ForwardDiff.derivative(synthetic_translation_position_prepared, synthetic.t0), () -> ForwardDiff.derivative(synthetic_translation_position_compiled, synthetic.t0))
     end
 
     for order in (2, 3, 4)
@@ -66,16 +83,34 @@ function benchmark_cases()
 
         de440_rotation_position(t) = de440.rotation_direct(t)[1]
         de440_rotation_position_compiled(t) = de440.rotation_compiled(t)[1]
+        de440_rotation_position_prepared(t) = de440.rotation_prepared(t)[1]
         de440_translation_position(t) = de440_vector.translation_direct(t)[SVector(1, 2, 3)]
         de440_translation_position_compiled(t) = de440_vector.translation_compiled(t)[SVector(1, 2, 3)]
+        de440_translation_position_prepared(t) = de440_vector.translation_prepared(t)[SVector(1, 2, 3)]
 
-        add_case!(cases, "de440 O$order rot$(de440.suffix)", () -> de440.rotation_direct(de440.t0), () -> de440.rotation_compiled(de440.t0))
-        add_case!(cases, "de440 O$order vec$(de440_vector.suffix)", () -> de440_vector.translation_direct(de440_vector.t0), () -> de440_vector.translation_compiled(de440_vector.t0))
-        add_case!(cases, "de440 O$order d/dt rot", () -> ForwardDiff.derivative(de440_rotation_position, de440.t0), () -> ForwardDiff.derivative(de440_rotation_position_compiled, de440.t0))
-        add_case!(cases, "de440 O$order d/dt vec", () -> ForwardDiff.derivative(de440_translation_position, de440_vector.t0), () -> ForwardDiff.derivative(de440_translation_position_compiled, de440_vector.t0))
+        add_case!(cases, "de440 O$order rot$(de440.suffix)", () -> de440.rotation_direct(de440.t0), () -> de440.rotation_prepared(de440.t0), () -> de440.rotation_compiled(de440.t0))
+        add_case!(cases, "de440 O$order vec$(de440_vector.suffix)", () -> de440_vector.translation_direct(de440_vector.t0), () -> de440_vector.translation_prepared(de440_vector.t0), () -> de440_vector.translation_compiled(de440_vector.t0))
+        add_case!(cases, "de440 O$order d/dt rot", () -> ForwardDiff.derivative(de440_rotation_position, de440.t0), () -> ForwardDiff.derivative(de440_rotation_position_prepared, de440.t0), () -> ForwardDiff.derivative(de440_rotation_position_compiled, de440.t0))
+        add_case!(cases, "de440 O$order d/dt vec", () -> ForwardDiff.derivative(de440_translation_position, de440_vector.t0), () -> ForwardDiff.derivative(de440_translation_position_prepared, de440_vector.t0), () -> ForwardDiff.derivative(de440_translation_position_compiled, de440_vector.t0))
     end
 
     return Tuple(cases)
+end
+
+function add_construction_suite!(suite)
+    scenario = build_synthetic_benchmark_scenario(2)
+    frames = scenario.fr
+    construction = BenchmarkGroup()
+    construction["prepare rotation"] = @benchmarkable prepare_rotation(
+        $frames, :ICRF, :C, Val(2))
+    construction["compile rotation"] = @benchmarkable compile_rotation(
+        $frames, :ICRF, :C, Val(2))
+    construction["prepare translation"] = @benchmarkable prepare_translation(
+        $frames, :Origin, :P2, :A, Val(2))
+    construction["compile translation"] = @benchmarkable compile_translation(
+        $frames, :Origin, :P2, :A, Val(2))
+    suite["construction"] = construction
+    return suite
 end
 
 function build_suite(cases)
@@ -84,6 +119,7 @@ function build_suite(cases)
     for case in cases
         group = BenchmarkGroup()
         group["direct"] = @benchmarkable $(case.direct)()
+        group["prepared"] = @benchmarkable $(case.prepared)()
         group["compiled"] = @benchmarkable $(case.compiled)()
         suite[case.name] = group
     end
@@ -95,23 +131,58 @@ trial_summary(trial) = BenchmarkTools.median(trial)
 
 function print_summary(results, cases)
     println()
-    println("Median timing summary (ns, bytes)")
-    @printf("%-24s %14s %14s %10s %14s %14s\n", "benchmark", "direct", "compiled", "speedup", "direct alloc", "compiled alloc")
-    println(repeat("-", 98))
+    println("Median steady-state timing (ns)")
+    @printf("%-24s %14s %14s %14s\n", "benchmark", "direct", "prepared", "compiled")
+    println(repeat("-", 72))
 
     for case in cases
         direct = trial_summary(results[case.name]["direct"])
+        prepared = trial_summary(results[case.name]["prepared"])
         compiled = trial_summary(results[case.name]["compiled"])
-        speedup = direct.time / compiled.time
 
         @printf(
-            "%-24s %14.1f %14.1f %9.2fx %14d %14d\n",
+            "%-24s %14.1f %14.1f %14.1f\n",
             case.name,
             direct.time,
+            prepared.time,
             compiled.time,
-            speedup,
-            direct.memory,
-            compiled.memory,
+        )
+    end
+
+
+    println()
+    println("Median steady-state allocations (count, bytes)")
+    @printf(
+        "%-24s %10s %10s %10s %10s %10s %10s\n",
+        "benchmark", "dir count", "dir bytes", "prep count", "prep bytes",
+        "comp count", "comp bytes",
+    )
+    println(repeat("-", 92))
+    for case in cases
+        direct = trial_summary(results[case.name]["direct"])
+        prepared = trial_summary(results[case.name]["prepared"])
+        compiled = trial_summary(results[case.name]["compiled"])
+        @printf(
+            "%-24s %10d %10d %10d %10d %10d %10d\n",
+            case.name, direct.allocs, direct.memory, prepared.allocs,
+            prepared.memory, compiled.allocs, compiled.memory,
+        )
+    end
+end
+
+function print_construction_summary(results)
+    println()
+    println("Median route construction (ns, count, bytes)")
+    @printf("%-22s %14s %12s %12s\n", "operation", "time", "allocations", "bytes")
+    println(repeat("-", 64))
+    for name in (
+        "prepare rotation", "compile rotation",
+        "prepare translation", "compile translation",
+    )
+        estimate = trial_summary(results["construction"][name])
+        @printf(
+            "%-22s %14.1f %12d %12d\n",
+            name, estimate.time, estimate.allocs, estimate.memory,
         )
     end
 end
@@ -121,11 +192,13 @@ function main()
 
     cases = benchmark_cases()
     suite = build_suite(cases)
+    add_construction_suite!(suite)
 
     println("Running benchmark suite...")
     results = run(suite; verbose = true)
 
     print_summary(results, cases)
+    print_construction_summary(results)
 end
 
 main()

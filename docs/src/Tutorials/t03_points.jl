@@ -113,7 +113,8 @@ vector3(F, :TimedAppendage, :SC, :SatFrame, π / 3)
 fun(t) = SA[cos(t), sin(t), 0]
 dfun(t) = SA[cos(t), sin(t), 0, -sin(t), cos(t), 0]
 
-add_point_dynamical!(F, :TimedAppendage2, -10004, :SolArrLeft, :SatFrame, fun, dfun)
+add_point_dynamical!(
+    F, :TimedAppendage2, -10004, :SolArrLeft, :SatFrame, fun; state6=dfun)
 
 #- 
 vector6(F, :TimedAppendage2, :SC, :SatFrame, π / 3)

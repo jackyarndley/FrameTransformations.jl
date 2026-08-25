@@ -27,8 +27,10 @@ function add_axes_itrf!(
 
     return add_axes_rotating!(
         fr, name, id, parentid,
-        t -> iers_rot3_gcrf_to_itrf(t, model), t -> iers_rot6_gcrf_to_itrf(t, model),
-        t -> iers_rot9_gcrf_to_itrf(t, model), t -> iers_rot12_gcrf_to_itrf(t, model)
+        t -> iers_rot3_gcrf_to_itrf(t, model);
+        rotation6=t -> iers_rot6_gcrf_to_itrf(t, model),
+        rotation9=t -> iers_rot9_gcrf_to_itrf(t, model),
+        rotation12=t -> iers_rot12_gcrf_to_itrf(t, model),
     )
 end
 

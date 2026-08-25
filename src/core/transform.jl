@@ -68,7 +68,7 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
             fromid = axes_id(fr, from)
             toid = axes_id(fr, to)
 
-            fromid == toid && return Rotation{$order}(T(1) * I)
+            fromid == toid && return Rotation{$order}(one(t) * I)
 
             for id in (fromid, toid)
                 if !has_axes(fr, id)
@@ -170,7 +170,8 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
             toid = point_id(fr, to)
             axid = axes_id(fr, ax)
 
-            fromid == toid && return @SVector zeros(T, 3 * $order)
+            fromid == toid && return SVector(
+                ntuple(_ -> zero(t), Val(3 * $order)))
 
             for id in (fromid, toid)
                 if !has_point(fr, id)
@@ -326,8 +327,7 @@ for (order, axfun, _axfun, pfun, _pfun, _pfwd, _pbwd, dfun) in zip(
                 stv = ($axfun)(frames, thisaxid, axid, t) * stv
             end
 
-            D = 3 * $order
-            return @views SVector(stv)[1:D]
+            return SVector(stv)
         end
 
     end

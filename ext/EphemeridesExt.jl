@@ -28,17 +28,17 @@ function add_point_ephemeris!(
     if isdefined(Ephemerides, :prepare_ephemeris)
         route = Ephemerides.prepare_ephemeris(eph, pid, id)
         funs = FramePointFunctions{O,T}(
-            t -> Translation{O}(ephem_vector3(route, t)),
-            t -> Translation{O}(ephem_vector6(route, t)),
-            t -> Translation{O}(ephem_vector9(route, t)),
-            t -> Translation{O}(ephem_vector12(route, t)),
+            t -> Translation{1}(ephem_vector3(route, t)),
+            t -> Translation{2}(ephem_vector6(route, t)),
+            t -> Translation{3}(ephem_vector9(route, t)),
+            t -> Translation{4}(ephem_vector12(route, t)),
         )
     else
         funs = FramePointFunctions{O,T}(
-            t -> Translation{O}(ephem_vector3(eph, pid, id, t)),
-            t -> Translation{O}(ephem_vector6(eph, pid, id, t)),
-            t -> Translation{O}(ephem_vector9(eph, pid, id, t)),
-            t -> Translation{O}(ephem_vector12(eph, pid, id, t)),
+            t -> Translation{1}(ephem_vector3(eph, pid, id, t)),
+            t -> Translation{2}(ephem_vector6(eph, pid, id, t)),
+            t -> Translation{3}(ephem_vector9(eph, pid, id, t)),
+            t -> Translation{4}(ephem_vector12(eph, pid, id, t)),
         )
     end
     return add_point!(fr, name, id, axid, funs, pid)
@@ -62,17 +62,17 @@ function add_axes_ephemeris!(
         if isdefined(Ephemerides, :prepare_orientation)
             route = Ephemerides.prepare_orientation(eph, pid, id)
             funs = FrameAxesFunctions{O,T}(
-                t -> Rotation{O}(angles_to_rot3(ephem_rotation3(route, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot6(ephem_rotation6(route, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot9(ephem_rotation9(route, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot12(ephem_rotation12(route, t), rotation_sequence)),
+                t -> Rotation{1}(angles_to_rot3(ephem_rotation3(route, t), rotation_sequence)),
+                t -> Rotation{2}(angles_to_rot6(ephem_rotation6(route, t), rotation_sequence)),
+                t -> Rotation{3}(angles_to_rot9(ephem_rotation9(route, t), rotation_sequence)),
+                t -> Rotation{4}(angles_to_rot12(ephem_rotation12(route, t), rotation_sequence)),
             )
         else
             funs = FrameAxesFunctions{O,T}(
-                t -> Rotation{O}(angles_to_rot3(ephem_rotation3(eph, pid, id, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot6(ephem_rotation6(eph, pid, id, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot9(ephem_rotation9(eph, pid, id, t), rotation_sequence)),
-                t -> Rotation{O}(angles_to_rot12(ephem_rotation12(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{1}(angles_to_rot3(ephem_rotation3(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{2}(angles_to_rot6(ephem_rotation6(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{3}(angles_to_rot9(ephem_rotation9(eph, pid, id, t), rotation_sequence)),
+                t -> Rotation{4}(angles_to_rot12(ephem_rotation12(eph, pid, id, t), rotation_sequence)),
             )
         end
     else

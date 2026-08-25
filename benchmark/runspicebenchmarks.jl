@@ -134,22 +134,30 @@ function body_case(frames, ephemeris, name, target)
     prepared = prepared_chain(ephemeris, target)
     direct_position = t -> vector3(frames, EARTH, target, ICRF, t)
     direct_state = t -> vector6(frames, EARTH, target, ICRF, t)
+    frame_prepared_position = prepare_translation(
+        frames, EARTH, target, ICRF, Val(1))
+    frame_prepared_state = prepare_translation(
+        frames, EARTH, target, ICRF, Val(2))
     compiled_position = compile_translation(frames, EARTH, target, ICRF, Val(1))
     compiled_state = compile_translation(frames, EARTH, target, ICRF, Val(2))
 
     reference_position = prepared.position(SINGLE_EPOCH)
     reference_state = prepared.state(SINGLE_EPOCH)
     @assert direct_position(SINGLE_EPOCH) ≈ reference_position
+    @assert frame_prepared_position(SINGLE_EPOCH) ≈ reference_position
     @assert compiled_position(SINGLE_EPOCH) ≈ reference_position
     @assert direct_state(SINGLE_EPOCH) ≈ reference_state
+    @assert frame_prepared_state(SINGLE_EPOCH) ≈ reference_state
     @assert compiled_state(SINGLE_EPOCH) ≈ reference_state
 
     return (;
         name,
-        prepared_position=prepared.position,
-        prepared_state=prepared.state,
+        ephemerides_position=prepared.position,
+        ephemerides_state=prepared.state,
         direct_position,
         direct_state,
+        frame_prepared_position,
+        frame_prepared_state,
         compiled_position,
         compiled_state,
     )
@@ -172,7 +180,7 @@ function add_single_query!(suite, case)
     body["position"] = BenchmarkGroup()
     body["state"] = BenchmarkGroup()
 
-    for path in ("prepared", "direct", "compiled")
+    for path in ("ephemerides", "direct", "frame_prepared", "compiled")
         position = getproperty(case, Symbol(path, "_position"))
         state = getproperty(case, Symbol(path, "_state"))
         body["position"][path] = @benchmarkable $position($SINGLE_EPOCH)
@@ -230,7 +238,7 @@ function build_suite(setup, sequential_count)
     suite["sequential"] = BenchmarkGroup()
     suite["third_body"] = BenchmarkGroup()
 
-    for path in ("prepared", "direct", "compiled")
+    for path in ("ephemerides", "direct", "frame_prepared", "compiled")
         sun_position = getproperty(sun, Symbol(path, "_position"))
         sun_state = getproperty(sun, Symbol(path, "_state"))
         moon_position = getproperty(moon, Symbol(path, "_position"))
@@ -256,24 +264,22 @@ trial_summary(trial) = BenchmarkTools.median(trial)
 
 function print_single_query_summary(results)
     println()
-    println("Single-query median timing (ns, bytes)")
+    println("Single-query median timing and allocations")
     @printf(
-        "%-6s %-8s %12s %12s %12s %10s %10s %10s\n",
-        "body", "query", "prepared", "direct", "compiled", "prep alloc", "dir alloc",
-        "comp alloc",
+        "%-6s %-8s %-15s %14s %12s %12s\n",
+        "body", "query", "path", "time (ns)", "allocations", "bytes",
     )
-    println(repeat("-", 94))
+    println(repeat("-", 76))
 
     for body in ("sun", "moon", "mars"), query in ("position", "state")
         group = results["single_query"][body][query]
-        prepared = trial_summary(group["prepared"])
-        direct = trial_summary(group["direct"])
-        compiled = trial_summary(group["compiled"])
-        @printf(
-            "%-6s %-8s %12.1f %12.1f %12.1f %10d %10d %10d\n",
-            body, query, prepared.time, direct.time, compiled.time,
-            prepared.memory, direct.memory, compiled.memory,
-        )
+        for path in ("ephemerides", "direct", "frame_prepared", "compiled")
+            estimate = trial_summary(group[path])
+            @printf(
+                "%-6s %-8s %-15s %14.1f %12d %12d\n",
+                body, query, path, estimate.time, estimate.allocs, estimate.memory,
+            )
+        end
     end
 end
 
@@ -282,19 +288,22 @@ function print_workload_summary(results, sequential_count)
     println("Sequential Sun-relative-to-Earth median timing ($sequential_count epochs, ms)")
     @printf("%-10s %14s %14s\n", "path", "position", "state")
     println(repeat("-", 40))
-    for path in ("prepared", "direct", "compiled")
+    for path in ("ephemerides", "direct", "frame_prepared", "compiled")
         position = trial_summary(results["sequential"][path]["position"])
         state = trial_summary(results["sequential"][path]["state"])
         @printf("%-10s %14.3f %14.3f\n", path, position.time / 1e6, state.time / 1e6)
     end
 
     println()
-    println("Sun + Moon third-body adapter median timing (ns, bytes)")
-    @printf("%-10s %14s %14s\n", "path", "time", "allocation")
-    println(repeat("-", 40))
-    for path in ("prepared", "direct", "compiled")
+    println("Sun + Moon third-body adapter median timing")
+    @printf("%-15s %14s %12s %12s\n", "path", "time (ns)", "allocations", "bytes")
+    println(repeat("-", 58))
+    for path in ("ephemerides", "direct", "frame_prepared", "compiled")
         trial = trial_summary(results["third_body"][path])
-        @printf("%-10s %14.1f %14d\n", path, trial.time, trial.memory)
+        @printf(
+            "%-15s %14.1f %12d %12d\n",
+            path, trial.time, trial.allocs, trial.memory,
+        )
     end
 end
 

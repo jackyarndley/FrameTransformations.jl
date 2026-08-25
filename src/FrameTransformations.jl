@@ -35,7 +35,7 @@ using SMDGraphs: MappedNodeGraph, SimpleGraph, MappedGraph,
 
 import SMDGraphs: get_node_id
 
-using Tempo: AbstractTimeScale, Epoch, j2000s, BarycentricDynamicalTime, ftype, CENTURY2SEC
+using Tempo: AbstractTimeScale, Epoch, j2000s, BarycentricDynamicalTime, CENTURY2SEC
 
 using JSMDInterfaces.Ephemeris: AbstractEphemerisProvider,
        ephem_position_records, ephem_available_points,
@@ -89,8 +89,10 @@ export rotation3, rotation6, rotation9, rotation12,
 
 include("core/transform.jl")
 
-# Compiled fast-path
-export CompiledRotation, CompiledTranslation, CompiledDirection,
+# Prepared storage path and fully specialized compiled fast-path
+export PreparedRotation, PreparedTranslation, PreparedDirection,
+       CompiledRotation, CompiledTranslation, CompiledDirection,
+       prepare_rotation, prepare_translation, prepare_direction,
        compile_rotation, compile_translation, compile_direction
 
 include("core/compiled.jl")

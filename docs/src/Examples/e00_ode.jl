@@ -66,7 +66,10 @@ prob = ODEProblem(two_body!, u0, tspan, p)
 # before the problem is solved, using the integrator:
 
 integrator = DiffEqBase.__init(prob, Vern9(), abstol=1e-14, reltol=1e-12)
-add_point_dynamical!(G, :SC, -1, 399, 1, t -> @views(integrator.sol(t)[1:3]), t -> integrator.sol(t))
+add_point_dynamical!(
+    G, :SC, -1, 399, 1, t -> @views(integrator.sol(t)[1:3]);
+    state6=t -> integrator.sol(t),
+)
 
 # Now we can compute the trajectory:
 
